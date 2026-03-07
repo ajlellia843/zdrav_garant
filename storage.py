@@ -4,34 +4,38 @@ import pickle
 
 
 class PickleStorage:
-    """Сериализация и десериализация данных через pickle."""
+    """Сериализация и десериализация данных через pickle.
+
+    Не содержит вызовов print/input — все сообщения
+    возвращаются вызывающему коду через возвращаемые значения.
+    """
 
     @staticmethod
-    def save(data, filename: str) -> bool:
+    def save(data, filename: str) -> tuple[bool, str]:
         """Сохранить данные в файл.
 
-        Возвращает True при успехе, False при ошибке.
+        Returns:
+            Кортеж (успех: bool, сообщение: str).
         """
         try:
             with open(filename, "wb") as f:
                 pickle.dump(data, f)
-            return True
+            return True, f"Данные сохранены в '{filename}'."
         except (OSError, pickle.PicklingError) as e:
-            print(f"  [Ошибка сохранения] {e}")
-            return False
+            return False, f"Ошибка сохранения: {e}"
 
     @staticmethod
-    def load(filename: str):
+    def load(filename: str) -> tuple[object | None, str]:
         """Загрузить данные из файла.
 
-        Возвращает объект при успехе, None при ошибке.
+        Returns:
+            Кортеж (данные или None, сообщение: str).
         """
         try:
             with open(filename, "rb") as f:
-                return pickle.load(f)
+                data = pickle.load(f)
+            return data, f"Данные загружены из '{filename}'."
         except FileNotFoundError:
-            print(f"  [Ошибка] Файл '{filename}' не найден.")
-            return None
+            return None, f"Файл '{filename}' не найден."
         except (OSError, pickle.UnpicklingError) as e:
-            print(f"  [Ошибка загрузки] {e}")
-            return None
+            return None, f"Ошибка загрузки: {e}"

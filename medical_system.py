@@ -6,6 +6,7 @@ from clinic import Clinic
 from appointment import Appointment
 from console_io import ConsoleIO
 from storage import PickleStorage
+from exceptions import CancelAction
 
 
 class MedicalSystem:
@@ -13,6 +14,7 @@ class MedicalSystem:
 
     Содержит списки пациентов, врачей, клиник и записей,
     а также методы для работы с ними.
+    Клиники и врачи соответствуют дизайну проекта «ЗдравГарант».
     """
 
     SAVE_FILE = "zdrav_garant.pkl"
@@ -27,21 +29,22 @@ class MedicalSystem:
         self._init_demo_data()
 
     # ------------------------------------------------------------------ #
-    #  Предустановленные демо-данные                                     #
+    #  Предустановленные данные из дизайна                                #
     # ------------------------------------------------------------------ #
     def _init_demo_data(self):
-        """Заполняет систему предустановленными клиниками и врачами."""
+        """Заполняет систему клиниками и врачами строго по дизайну."""
         self.clinics = [
-            Clinic(1, "ЗдравГарант Центральная", "Терапия"),
-            Clinic(2, "ЗдравГарант Северная", "Хирургия"),
-            Clinic(3, "ЗдравГарант Южная", "Кардиология"),
+            Clinic(1, "Городская клиническая больница №1", "Первичное отделение"),
+            Clinic(2, "Центр здоровья «Пульс»", "Первичное отделение"),
+            Clinic(3, "Клиника современной медицины", "Первичное отделение"),
         ]
         self.doctors = [
-            Doctor(1, "Иванов Алексей Петрович", 45, "Терапевт", 1),
-            Doctor(2, "Смирнова Елена Викторовна", 38, "Хирург", 2),
-            Doctor(3, "Козлов Дмитрий Сергеевич", 50, "Кардиолог", 3),
-            Doctor(4, "Новикова Ольга Игоревна", 42, "Терапевт", 1),
-            Doctor(5, "Морозов Андрей Николаевич", 55, "Кардиолог", 3),
+            Doctor(1, "Иванов Иван Иванович", 52, "Кардиолог", 1),
+            Doctor(2, "Петров Петр Петрович", 45, "Терапевт", 1),
+            Doctor(3, "Сидорова Анна Сергеевна", 38, "Невролог", 2),
+            Doctor(4, "Кузнецов Олег Викторович", 47, "Хирург", 2),
+            Doctor(5, "Пенкин Алексей Леонидович", 41, "Нарколог", 3),
+            Doctor(6, "Васильев Игорь Николаевич", 50, "Хирург", 3),
         ]
 
     # ------------------------------------------------------------------ #
@@ -74,32 +77,61 @@ class MedicalSystem:
     # ------------------------------------------------------------------ #
     #  Регистрация и вход                                                 #
     # ------------------------------------------------------------------ #
-    def add_patient(self) -> Patient | None:
-        """Регистрация нового пациента через консоль."""
+    def register_patient(self) -> Patient | None:
+        """Регистрация нового пациента.
+
+        Запрашивает ID, ФИО, возраст, пароль с подтверждением.
+        Возвращает созданного пациента или None при отмене.
+        """
         self.io.message("\n--- Регистрация пациента ---")
-        pid = self.io.input_int("  Введите ID: ")
-        if self.find_patient_by_id(pid):
-            self.io.error("Пациент с таким ID уже существует.")
+        self.io.message("  (для отмены введите cancel)")
+        try:
+            pid = self.io.input_positive_int("  Введите ID: ")
+            if self.find_patient_by_id(pid):
+                self.io.error("Пациент с таким ID уже существует.")
+                return None
+
+            name = self.io.input_str("  Введите ФИО: ")
+            age = self.io.input_positive_int("  Введите возраст: ")
+
+            while True:
+                password = self.io.input_password("  Введите пароль (мин. 8 символов): ")
+                password_confirm = self.io.input_password("  Повторите пароль: ")
+                if password == password_confirm:
+                    break
+                self.io.error("Пароли не совпадают. Попробуйте снова.")
+
+            patient = Patient(pid, name, age, password)
+            self.patients.append(patient)
+            self.io.success(f"Пациент '{name}' зарегистрирован.")
+            return patient
+
+        except CancelAction:
+            self.io.message("  Регистрация отменена.")
             return None
-        name = self.io.input_str("  Введите ФИО: ")
-        age = self.io.input_int("  Введите возраст: ")
-        password = self.io.input_str("  Введите пароль: ")
-        patient = Patient(pid, name, age, password)
-        self.patients.append(patient)
-        self.io.success(f"Пациент '{name}' зарегистрирован.")
-        return patient
 
     def login(self) -> Patient | None:
-        """Вход пациента в систему."""
+        """Вход пациента в систему.
+
+        Возвращает объект пациента или None при неудаче/отмене.
+        """
         self.io.message("\n--- Вход в систему ---")
-        pid = self.io.input_int("  Введите ID: ")
-        password = self.io.input_str("  Введите пароль: ")
-        patient = self.find_patient_by_id(pid)
-        if patient and patient.password == password:
-            self.io.success(f"Добро пожаловать, {patient.full_name}!")
-            return patient
-        self.io.error("Неверный ID или пароль.")
-        return None
+        self.io.message("  (для отмены введите cancel)")
+        try:
+            pid = self.io.input_int("  Введите ID: ")
+            password = self.io._raw_input("  Введите пароль: ")
+
+            patient = self.find_patient_by_id(pid)
+            if patient and patient.password == password:
+                self.io.success(f"Добро пожаловать, {patient.full_name}!")
+                return patient
+
+            self.io.error("Неверный ID или пароль.")
+            return None
+
+        except CancelAction:
+            self.io.message("  Вход отменён.")
+            return None
 
     # ------------------------------------------------------------------ #
     #  Просмотр данных                                                    #
@@ -108,13 +140,10 @@ class MedicalSystem:
         """Вывод списка клиник."""
         self.io.display_list(self.clinics, "Список клиник")
 
-    def show_doctors(self, clinic_id: int = None):
-        """Вывод списка врачей (с фильтром по клинике)."""
-        if clinic_id is not None:
-            filtered = [d for d in self.doctors if d.clinic_id == clinic_id]
-        else:
-            filtered = self.doctors
-        self.io.display_list(filtered, "Список врачей")
+    def show_doctors_by_clinic(self, clinic_id: int):
+        """Вывод списка врачей конкретной клиники."""
+        filtered = [d for d in self.doctors if d.clinic_id == clinic_id]
+        self.io.display_list(filtered, "Врачи выбранной клиники")
 
     def show_patient_history(self, patient: Patient):
         """Вывод истории записей пациента."""
@@ -125,103 +154,144 @@ class MedicalSystem:
     #  Запись на диагностику                                              #
     # ------------------------------------------------------------------ #
     def add_appointment(self, patient: Patient):
-        """Создание новой записи на диагностику."""
+        """Создание новой записи на диагностику.
+
+        Пользователь выбирает клинику, врача и дату.
+        Операцию можно отменить на любом шаге.
+        """
         self.io.message("\n--- Запись на диагностику ---")
+        self.io.message("  (для отмены введите cancel)")
+        try:
+            self.show_clinics()
+            clinic_id = self.io.input_int("  Введите ID клиники: ")
+            clinic = self._find_clinic_by_id(clinic_id)
+            if not clinic:
+                self.io.error("Клиника не найдена.")
+                return
 
-        self.show_clinics()
-        clinic_id = self.io.input_int("  Введите ID клиники: ")
-        clinic = self._find_clinic_by_id(clinic_id)
-        if not clinic:
-            self.io.error("Клиника не найдена.")
-            return
+            self.show_doctors_by_clinic(clinic_id)
+            doctor_id = self.io.input_int("  Введите ID врача: ")
+            doctor = self._find_doctor_by_id(doctor_id)
+            if not doctor or doctor.clinic_id != clinic_id:
+                self.io.error("Врач не найден в выбранной клинике.")
+                return
 
-        self.show_doctors(clinic_id)
-        doctor_id = self.io.input_int("  Введите ID врача: ")
-        doctor = self._find_doctor_by_id(doctor_id)
-        if not doctor or doctor.clinic_id != clinic_id:
-            self.io.error("Врач не найден в выбранной клинике.")
-            return
+            date_str = self.io.input_date("  Введите дату приёма (ДД.ММ.ГГГГ): ")
 
-        date = self.io.input_str("  Введите дату (ДД.ММ.ГГГГ): ")
+            appt = Appointment(
+                self._next_appointment_id(),
+                patient.id,
+                doctor.id,
+                clinic.clinic_id,
+                date_str,
+            )
+            self.appointments.append(appt)
+            patient.appointments.append(appt.appointment_id)
+            self.io.success(
+                f"Запись #{appt.appointment_id} создана: "
+                f"{doctor.full_name}, {clinic.clinic_name}, {date_str}"
+            )
 
-        appt = Appointment(
-            self._next_appointment_id(),
-            patient.id,
-            doctor.id,
-            clinic.clinic_id,
-            date,
-        )
-        self.appointments.append(appt)
-        patient.appointments.append(appt.appointment_id)
-        self.io.success(
-            f"Запись #{appt.appointment_id} создана: "
-            f"{doctor.full_name}, {clinic.clinic_name}, {date}"
-        )
+        except CancelAction:
+            self.io.message("  Запись на диагностику отменена.")
 
     # ------------------------------------------------------------------ #
     #  Управление записями                                                #
     # ------------------------------------------------------------------ #
     def cancel_appointment(self, patient: Patient):
         """Отмена записи пациента."""
-        self.show_patient_history(patient)
-        aid = self.io.input_int("  Введите номер записи для отмены: ")
-        for appt in self.appointments:
-            if appt.appointment_id == aid and appt.patient_id == patient.id:
-                if appt.status == "cancelled":
-                    self.io.error("Запись уже отменена.")
+        self.io.message("\n--- Отмена записи ---")
+        self.io.message("  (для отмены действия введите cancel)")
+        try:
+            self.show_patient_history(patient)
+            aid = self.io.input_int("  Введите номер записи для отмены: ")
+            for appt in self.appointments:
+                if appt.appointment_id == aid and appt.patient_id == patient.id:
+                    if appt.status == "cancelled":
+                        self.io.error("Запись уже отменена.")
+                        return
+                    appt.status = "cancelled"
+                    self.io.success(f"Запись #{aid} отменена.")
                     return
-                appt.status = "cancelled"
-                self.io.success(f"Запись #{aid} отменена.")
-                return
-        self.io.error("Запись не найдена.")
+            self.io.error("Запись не найдена.")
+
+        except CancelAction:
+            self.io.message("  Действие отменено.")
 
     def reschedule_appointment(self, patient: Patient):
         """Перенос записи пациента на другую дату."""
-        self.show_patient_history(patient)
-        aid = self.io.input_int("  Введите номер записи для переноса: ")
-        for appt in self.appointments:
-            if appt.appointment_id == aid and appt.patient_id == patient.id:
-                if appt.status != "scheduled":
-                    self.io.error("Можно перенести только запланированную запись.")
+        self.io.message("\n--- Перенос записи ---")
+        self.io.message("  (для отмены действия введите cancel)")
+        try:
+            self.show_patient_history(patient)
+            aid = self.io.input_int("  Введите номер записи для переноса: ")
+            for appt in self.appointments:
+                if appt.appointment_id == aid and appt.patient_id == patient.id:
+                    if appt.status != "scheduled":
+                        self.io.error("Можно перенести только запланированную запись.")
+                        return
+                    new_date = self.io.input_date("  Введите новую дату (ДД.ММ.ГГГГ): ")
+                    appt.date = new_date
+                    self.io.success(f"Запись #{aid} перенесена на {new_date}.")
                     return
-                new_date = self.io.input_str("  Введите новую дату (ДД.ММ.ГГГГ): ")
-                appt.date = new_date
-                self.io.success(f"Запись #{aid} перенесена на {new_date}.")
+            self.io.error("Запись не найдена.")
+
+        except CancelAction:
+            self.io.message("  Перенос отменён.")
+
+    # ------------------------------------------------------------------ #
+    #  Настройки безопасности                                             #
+    # ------------------------------------------------------------------ #
+    def edit_patient_name(self, patient: Patient):
+        """Изменение ФИО пациента."""
+        self.io.message(f"\n  Текущее ФИО: {patient.full_name}")
+        try:
+            new_name = self.io.input_str("  Введите новое ФИО: ")
+            patient.edit(full_name=new_name)
+            self.io.success(f"ФИО изменено на '{patient.full_name}'.")
+        except CancelAction:
+            self.io.message("  Изменение ФИО отменено.")
+
+    def edit_patient_age(self, patient: Patient):
+        """Изменение возраста пациента."""
+        self.io.message(f"\n  Текущий возраст: {patient.age}")
+        try:
+            new_age = self.io.input_positive_int("  Введите новый возраст: ")
+            patient.edit(age=new_age)
+            self.io.success(f"Возраст изменён на {patient.age}.")
+        except CancelAction:
+            self.io.message("  Изменение возраста отменено.")
+
+    def change_password(self, patient: Patient):
+        """Смена пароля пациента.
+
+        Требует ввод текущего пароля, затем новый пароль
+        с подтверждением и проверкой длины (>= 8 символов).
+        """
+        self.io.message("\n--- Смена пароля ---")
+        self.io.message("  (для отмены введите cancel)")
+        try:
+            current = self.io._raw_input("  Введите текущий пароль: ")
+            if current != patient.password:
+                self.io.error("Неверный текущий пароль.")
                 return
-        self.io.error("Запись не найдена.")
 
-    # ------------------------------------------------------------------ #
-    #  Редактирование профиля                                             #
-    # ------------------------------------------------------------------ #
+            while True:
+                new_pwd = self.io.input_password("  Введите новый пароль (мин. 8 символов): ")
+                confirm = self.io.input_password("  Повторите новый пароль: ")
+                if new_pwd == confirm:
+                    break
+                self.io.error("Пароли не совпадают. Попробуйте снова.")
+
+            patient.edit(password=new_pwd)
+            self.io.success("Пароль успешно изменён.")
+
+        except CancelAction:
+            self.io.message("  Смена пароля отменена.")
+
     def edit_patient_data(self, patient: Patient):
-        """Редактирование данных пациента."""
-        self.io.message("\n--- Настройки безопасности ---")
-        self.io.message(f"  Текущие данные: {patient}")
-
-        new_name = self.io.input_str(
-            f"  Новое ФИО (Enter — оставить '{patient.full_name}'): "
-        )
-        new_age_str = self.io.input_str(
-            f"  Новый возраст (Enter — оставить {patient.age}): "
-        )
-        new_password = self.io.input_str(
-            "  Новый пароль (Enter — оставить прежний): "
-        )
-
-        new_age = None
-        if new_age_str:
-            try:
-                new_age = int(new_age_str)
-            except ValueError:
-                self.io.error("Некорректный возраст, значение не изменено.")
-
-        patient.edit(
-            full_name=new_name if new_name else None,
-            age=new_age,
-            password=new_password if new_password else None,
-        )
-        self.io.success("Данные обновлены.")
-        self.io.display(patient)
+        """Устаревший метод — для обратной совместимости вызывает подменю."""
+        self.edit_patient_name(patient)
 
     # ------------------------------------------------------------------ #
     #  Очистка данных                                                     #
@@ -236,7 +306,7 @@ class MedicalSystem:
     # ------------------------------------------------------------------ #
     #  Сохранение / загрузка                                              #
     # ------------------------------------------------------------------ #
-    def save_data(self):
+    def save_to_file(self):
         """Сохранение состояния системы в файл."""
         data = {
             "patients": self.patients,
@@ -244,15 +314,51 @@ class MedicalSystem:
             "clinics": self.clinics,
             "appointments": self.appointments,
         }
-        if self.storage.save(data, self.SAVE_FILE):
-            self.io.success(f"Данные сохранены в '{self.SAVE_FILE}'.")
+        ok, msg = self.storage.save(data, self.SAVE_FILE)
+        if ok:
+            self.io.success(msg)
+        else:
+            self.io.error(msg)
 
-    def load_data(self):
-        """Загрузка состояния системы из файла."""
-        data = self.storage.load(self.SAVE_FILE)
+    def load_from_file(self):
+        """Загрузка состояния системы из файла.
+
+        После загрузки проверяет наличие демо-клиник и врачей,
+        чтобы не создавать дубликатов.
+        """
+        data, msg = self.storage.load(self.SAVE_FILE)
         if data is not None:
             self.patients = data.get("patients", [])
             self.doctors = data.get("doctors", [])
             self.clinics = data.get("clinics", [])
             self.appointments = data.get("appointments", [])
-            self.io.success(f"Данные загружены из '{self.SAVE_FILE}'.")
+            self._ensure_demo_data()
+            self.io.success(msg)
+        else:
+            self.io.error(msg)
+
+    def _ensure_demo_data(self):
+        """Добавляет демо-клиники и врачей, если они отсутствуют после загрузки."""
+        demo_clinics = [
+            Clinic(1, "Городская клиническая больница №1", "Первичное отделение"),
+            Clinic(2, "Центр здоровья «Пульс»", "Первичное отделение"),
+            Clinic(3, "Клиника современной медицины", "Первичное отделение"),
+        ]
+        demo_doctors = [
+            Doctor(1, "Иванов Иван Иванович", 52, "Кардиолог", 1),
+            Doctor(2, "Петров Петр Петрович", 45, "Терапевт", 1),
+            Doctor(3, "Сидорова Анна Сергеевна", 38, "Невролог", 2),
+            Doctor(4, "Кузнецов Олег Викторович", 47, "Хирург", 2),
+            Doctor(5, "Пенкин Алексей Леонидович", 41, "Нарколог", 3),
+            Doctor(6, "Васильев Игорь Николаевич", 50, "Хирург", 3),
+        ]
+
+        existing_clinic_ids = {c.clinic_id for c in self.clinics}
+        for c in demo_clinics:
+            if c.clinic_id not in existing_clinic_ids:
+                self.clinics.append(c)
+
+        existing_doctor_ids = {d.id for d in self.doctors}
+        for d in demo_doctors:
+            if d.id not in existing_doctor_ids:
+                self.doctors.append(d)
