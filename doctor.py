@@ -6,9 +6,10 @@ from person import Person
 class Doctor(Person):
     """Врач медицинской системы."""
 
-    def __init__(self, person_id: int, full_name: str, age: int,
-                 specialization: str, clinic_id: int):
-        super().__init__(person_id, full_name, age)
+    def __init__(self, person_id: int, last_name: str, first_name: str,
+                 middle_name: str, age: int, specialization: str,
+                 clinic_id: int):
+        super().__init__(person_id, last_name, first_name, age, middle_name)
         self.specialization = specialization
         self.clinic_id = clinic_id
 

@@ -6,7 +6,7 @@ class Appointment:
 
     STATUSES = ("scheduled", "cancelled", "completed")
 
-    def __init__(self, appointment_id: int, patient_id: int, doctor_id: int,
+    def __init__(self, appointment_id: int, patient_id: str, doctor_id: int,
                  clinic_id: int, date: str, status: str = "scheduled"):
         self.appointment_id = appointment_id
         self.patient_id = patient_id

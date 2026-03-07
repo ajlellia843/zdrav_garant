@@ -20,8 +20,14 @@ def main():
     # ------------------------------------------------------------------ #
     #  Подменю «Настройки безопасности»                                   #
     # ------------------------------------------------------------------ #
-    def security_change_name():
-        system.edit_patient_name(current_patient)
+    def security_change_last_name():
+        system.edit_patient_last_name(current_patient)
+
+    def security_change_first_name():
+        system.edit_patient_first_name(current_patient)
+
+    def security_change_middle_name():
+        system.edit_patient_middle_name(current_patient)
 
     def security_change_age():
         system.edit_patient_age(current_patient)
@@ -38,10 +44,12 @@ def main():
             back = True
 
         security_menu = {
-            1: ("Изменить ФИО", security_change_name),
-            2: ("Изменить возраст", security_change_age),
-            3: ("Изменить пароль", security_change_password),
-            4: ("Назад", go_back),
+            1: ("Изменить фамилию", security_change_last_name),
+            2: ("Изменить имя", security_change_first_name),
+            3: ("Изменить отчество", security_change_middle_name),
+            4: ("Изменить возраст", security_change_age),
+            5: ("Изменить пароль", security_change_password),
+            6: ("Назад", go_back),
         }
         while not back:
             io.message(f"\n--- Настройки безопасности ({current_patient.full_name}) ---")
@@ -93,12 +101,6 @@ def main():
     def panel_security():
         run_security_menu()
 
-    def panel_save():
-        system.save_to_file()
-
-    def panel_load():
-        system.load_from_file()
-
     def panel_logout():
         nonlocal current_patient
         current_patient = None
@@ -114,13 +116,11 @@ def main():
             1: ("Записаться на диагностику", panel_make_appointment),
             2: ("История записей", panel_show_history),
             3: ("Настройки безопасности", panel_security),
-            4: ("Сохранить данные в файл", panel_save),
-            5: ("Загрузить данные из файла", panel_load),
-            6: ("Выйти из аккаунта", panel_logout),
-            7: ("Завершить программу", panel_exit_program),
+            4: ("Выйти из аккаунта", panel_logout),
+            5: ("Завершить программу", panel_exit_program),
         }
         while current_patient is not None:
-            io.message(f"\n  Вы вошли как: {current_patient.full_name}")
+            io.message(f"\n  Вы вошли как: {current_patient.full_name} ({current_patient.id})")
             io.show_menu(panel_menu)
             choice = io.input_choice(panel_menu)
             panel_menu[choice][1]()

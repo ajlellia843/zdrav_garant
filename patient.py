@@ -4,18 +4,23 @@ from person import Person
 
 
 class Patient(Person):
-    """Пациент медицинской системы."""
+    """Пациент медицинской системы.
 
-    def __init__(self, person_id: int, full_name: str, age: int, password: str):
-        super().__init__(person_id, full_name, age)
+    ID пациента — строка формата PG-XXXXX (генерируется автоматически).
+    """
+
+    def __init__(self, person_id: str, last_name: str, first_name: str,
+                 age: int, password: str, middle_name: str = ""):
+        super().__init__(person_id, last_name, first_name, age, middle_name)
         self.password = password
         self.appointments: list = []
 
-    def edit(self, full_name: str = None, age: int = None, password: str = None):
-        """Редактирование данных пациента (имя, возраст, пароль)."""
-        super().edit(full_name, age)
+    def edit(self, last_name: str = None, first_name: str = None,
+             middle_name: str = None, age: int = None, password: str = None):
+        """Редактирование данных пациента."""
+        super().edit(last_name, first_name, middle_name, age)
         if password is not None:
             self.password = password
 
     def __str__(self) -> str:
-        return f"[Пациент ID: {self.id}] {self.full_name}, возраст: {self.age}"
+        return f"[Пациент {self.id}] {self.full_name}, возраст: {self.age}"

@@ -3,6 +3,7 @@
 from datetime import datetime, date
 
 from exceptions import CancelAction
+from validators import validate_password
 
 CANCEL_COMMANDS = {"cancel", "q", "quit", "exit"}
 
@@ -42,6 +43,19 @@ class ConsoleIO:
             print("  Ошибка: значение не может быть пустым.")
 
     @staticmethod
+    def input_optional_str(prompt: str) -> str:
+        """Запрос строки, допускающей пустое значение.
+
+        Пустой ввод (просто Enter) возвращает пустую строку.
+        Команды отмены по-прежнему работают.
+
+        Raises:
+            CancelAction: при вводе команды отмены.
+        """
+        value = ConsoleIO._raw_input(prompt)
+        return value.strip()
+
+    @staticmethod
     def input_int(prompt: str) -> int:
         """Запрос целого числа с повторным запросом при ошибке.
 
@@ -69,17 +83,23 @@ class ConsoleIO:
             print("  Ошибка: число должно быть положительным.")
 
     @staticmethod
-    def input_password(prompt: str, min_length: int = 8) -> str:
-        """Запрос пароля с проверкой минимальной длины.
+    def input_validated_password(prompt: str) -> str:
+        """Запрос пароля с проверкой требований сложности.
+
+        Требования: мин. 8 символов, строчная и заглавная латинские
+        буквы, цифра, спецсимвол.
 
         Raises:
             CancelAction: при вводе команды отмены.
         """
         while True:
             value = ConsoleIO._raw_input(prompt)
-            if len(value) >= min_length:
+            is_valid, errors = validate_password(value)
+            if is_valid:
                 return value
-            print(f"  Ошибка: пароль должен содержать минимум {min_length} символов.")
+            print("  Пароль не соответствует требованиям:")
+            for err in errors:
+                print(f"    - {err}")
 
     @staticmethod
     def input_date(prompt: str) -> str:
