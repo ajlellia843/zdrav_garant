@@ -3,7 +3,7 @@
 from datetime import datetime, date
 
 from exceptions import CancelAction
-from validators import validate_password
+from validators import validate_password, validate_email
 
 CANCEL_COMMANDS = {"cancel", "q", "quit", "exit"}
 
@@ -100,6 +100,20 @@ class ConsoleIO:
             print("  Пароль не соответствует требованиям:")
             for err in errors:
                 print(f"    - {err}")
+
+    @staticmethod
+    def input_email(prompt: str) -> str:
+        """Запрос email с базовой валидацией.
+
+        Raises:
+            CancelAction: при вводе команды отмены.
+        """
+        while True:
+            value = ConsoleIO._raw_input(prompt)
+            is_valid, err_msg = validate_email(value.strip())
+            if is_valid:
+                return value.strip()
+            print(f"  Ошибка: {err_msg}")
 
     @staticmethod
     def input_date(prompt: str) -> str:

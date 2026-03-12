@@ -35,3 +35,38 @@ def validate_password(password: str) -> tuple[bool, list[str]]:
         errors.append("хотя бы один специальный символ (!@#$%^&* и т.д.)")
 
     return (len(errors) == 0, errors)
+
+
+def validate_email(email: str) -> tuple[bool, str]:
+    """Проверяет email на базовую корректность.
+
+    Требования:
+        - не пустой;
+        - без пробелов;
+        - содержит ровно один символ @;
+        - после @ есть доменная часть с точкой.
+
+    Returns:
+        Кортеж (email_валиден: bool, сообщение_об_ошибке: str).
+    """
+    if not email or not email.strip():
+        return False, "Email не может быть пустым."
+
+    if " " in email:
+        return False, "Email не должен содержать пробелов."
+
+    if email.count("@") != 1:
+        return False, "Email должен содержать ровно один символ @."
+
+    local_part, domain = email.split("@")
+
+    if not local_part:
+        return False, "Перед @ должна быть локальная часть."
+
+    if not domain or "." not in domain:
+        return False, "После @ должен быть домен с точкой (например, mail.ru)."
+
+    if domain.startswith(".") or domain.endswith("."):
+        return False, "Домен не может начинаться или заканчиваться точкой."
+
+    return True, ""

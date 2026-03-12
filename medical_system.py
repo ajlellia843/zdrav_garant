@@ -74,6 +74,32 @@ class MedicalSystem:
                 return p
         return None
 
+    def find_patient_by_email(self, email: str) -> Patient | None:
+        """Поиск пациента по email."""
+        email_lower = email.lower()
+        for p in self.patients:
+            if p.email.lower() == email_lower:
+                return p
+        return None
+
+    def find_patient_by_login(self, login_value: str) -> Patient | None:
+        """Поиск пациента по ID или email."""
+        patient = self.find_patient_by_id(login_value)
+        if patient:
+            return patient
+        return self.find_patient_by_email(login_value)
+
+    def _is_email_unique(self, email: str,
+                         exclude_patient: Patient = None) -> bool:
+        """Проверяет, что email не занят другим пациентом."""
+        email_lower = email.lower()
+        for p in self.patients:
+            if p is exclude_patient:
+                continue
+            if p.email.lower() == email_lower:
+                return False
+        return True
+
     def _find_doctor_by_id(self, doctor_id: int) -> Doctor | None:
         for d in self.doctors:
             if d.id == doctor_id:
@@ -132,7 +158,8 @@ class MedicalSystem:
         """Регистрация нового пациента.
 
         ID генерируется автоматически в формате PG-XXXXX.
-        Запрашивает фамилию, имя, отчество, возраст, пароль с подтверждением.
+        Запрашивает фамилию, имя, отчество, возраст, email, пароль
+        с подтверждением.
         """
         self.io.message("\n--- Регистрация пациента ---")
         self.io.message("  (для отмены введите cancel)")
@@ -142,15 +169,23 @@ class MedicalSystem:
             middle_name = self.io.input_optional_str("  Отчество (Enter — пропустить): ")
             age = self.io.input_positive_int("  Возраст: ")
 
+            while True:
+                email = self.io.input_email("  Email: ")
+                if self._is_email_unique(email):
+                    break
+                self.io.error("Этот email уже зарегистрирован. Введите другой.")
+
             password = self._input_password_with_confirm()
 
             pid = self._next_patient_id()
-            patient = Patient(pid, last_name, first_name, age, password, middle_name)
+            patient = Patient(pid, last_name, first_name, age, password,
+                              email, middle_name)
             self.patients.append(patient)
 
             self.io.success(f"Пациент '{patient.full_name}' зарегистрирован.")
             self.io.message(f"  Ваш ID: {pid}")
-            self.io.message("  Запомните его для входа в систему.")
+            self.io.message(f"  Ваш email: {email}")
+            self.io.message("  Вход возможен по ID или по email.")
             return patient
 
         except CancelAction:
@@ -160,20 +195,20 @@ class MedicalSystem:
     def login(self) -> Patient | None:
         """Вход пациента в систему.
 
-        Запрашивает строковый ID и пароль.
+        Запрашивает ID или email и пароль.
         """
         self.io.message("\n--- Вход в систему ---")
         self.io.message("  (для отмены введите cancel)")
         try:
-            pid = self.io.input_str("  Введите ID (например, PG-00001): ")
+            login_val = self.io.input_str("  Введите ID или email: ")
             password = self.io._raw_input("  Введите пароль: ")
 
-            patient = self.find_patient_by_id(pid)
+            patient = self.find_patient_by_login(login_val)
             if patient and patient.password == password:
                 self.io.success(f"Добро пожаловать, {patient.full_name}!")
                 return patient
 
-            self.io.error("Неверный ID или пароль.")
+            self.io.error("Неверный ID/email или пароль.")
             return None
 
         except CancelAction:
@@ -206,7 +241,7 @@ class MedicalSystem:
             self.io.display_list([], "Все пациенты")
             return
         lines = [
-            f"[{p.id}] {p.full_name}, возраст: {p.age}"
+            f"[{p.id}] {p.full_name}, возраст: {p.age}, email: {p.email}"
             for p in self.patients
         ]
         self.io.display_list(lines, "Все пациенты")
@@ -256,6 +291,16 @@ class MedicalSystem:
                 patient.edit(age=val)
                 self.io.success(f"Возраст изменён на {patient.age}.")
 
+            def _edit_email():
+                self.io.message(f"\n  Текущий email: {patient.email}")
+                while True:
+                    val = self.io.input_email("  Новый email: ")
+                    if self._is_email_unique(val, exclude_patient=patient):
+                        break
+                    self.io.error("Этот email уже зарегистрирован.")
+                patient.edit(email=val)
+                self.io.success(f"Email изменён на '{patient.email}'.")
+
             def _edit_pwd():
                 self.io.message("\n--- Смена пароля (админ) ---")
                 new_pwd = self._input_password_with_confirm()
@@ -271,8 +316,9 @@ class MedicalSystem:
                 2: ("Изменить имя", _edit_first),
                 3: ("Изменить отчество", _edit_middle),
                 4: ("Изменить возраст", _edit_age),
-                5: ("Изменить пароль", _edit_pwd),
-                6: ("Назад", _go_back),
+                5: ("Изменить email", _edit_email),
+                6: ("Изменить пароль", _edit_pwd),
+                7: ("Назад", _go_back),
             }
             while not back:
                 self.io.message(f"\n  Редактирование: {patient}")
@@ -446,6 +492,22 @@ class MedicalSystem:
                 return
             patient.edit(age=new_age)
             self.io.success(f"Возраст изменён на {patient.age}.")
+        except CancelAction:
+            self.io.message("  Изменение отменено.")
+
+    def edit_patient_email(self, patient: Patient):
+        """Изменение email пациента (с подтверждением паролем)."""
+        self.io.message(f"\n  Текущий email: {patient.email}")
+        try:
+            while True:
+                new_val = self.io.input_email("  Введите новый email: ")
+                if self._is_email_unique(new_val, exclude_patient=patient):
+                    break
+                self.io.error("Этот email уже зарегистрирован.")
+            if not self._verify_password(patient):
+                return
+            patient.edit(email=new_val)
+            self.io.success(f"Email изменён на '{patient.email}'.")
         except CancelAction:
             self.io.message("  Изменение отменено.")
 

@@ -33,6 +33,9 @@ def main():
     def security_change_age():
         system.edit_patient_age(current_patient)
 
+    def security_change_email():
+        system.edit_patient_email(current_patient)
+
     def security_change_password():
         system.change_password(current_patient)
 
@@ -49,8 +52,9 @@ def main():
             2: ("Изменить имя", security_change_first_name),
             3: ("Изменить отчество", security_change_middle_name),
             4: ("Изменить возраст", security_change_age),
-            5: ("Изменить пароль", security_change_password),
-            6: ("Назад", go_back),
+            5: ("Изменить email", security_change_email),
+            6: ("Изменить пароль", security_change_password),
+            7: ("Назад", go_back),
         }
         while not back:
             io.message(f"\n--- Настройки безопасности ({current_patient.full_name}) ---")
