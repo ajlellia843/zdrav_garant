@@ -1,6 +1,7 @@
 """Точка входа консольного приложения «ЗдравГарант».
 
 Реализует многоуровневое текстовое меню через словари функций.
+Стартовое меню выполняет роль административной панели.
 """
 
 from medical_system import MedicalSystem
@@ -18,7 +19,7 @@ def main():
     io.message("=" * 50)
 
     # ------------------------------------------------------------------ #
-    #  Подменю «Настройки безопасности»                                   #
+    #  Подменю «Настройки безопасности» (внутри панели пациента)          #
     # ------------------------------------------------------------------ #
     def security_change_last_name():
         system.edit_patient_last_name(current_patient)
@@ -106,10 +107,6 @@ def main():
         current_patient = None
         io.success("Вы вышли из системы.")
 
-    def panel_exit_program():
-        io.message("\nСпасибо за использование системы «ЗдравГарант». До свидания!")
-        raise SystemExit
-
     def run_patient_panel():
         """Цикл панели пациента."""
         panel_menu = {
@@ -117,7 +114,6 @@ def main():
             2: ("История записей", panel_show_history),
             3: ("Настройки безопасности", panel_security),
             4: ("Выйти из аккаунта", panel_logout),
-            5: ("Завершить программу", panel_exit_program),
         }
         while current_patient is not None:
             io.message(f"\n  Вы вошли как: {current_patient.full_name} ({current_patient.id})")
@@ -126,7 +122,7 @@ def main():
             panel_menu[choice][1]()
 
     # ------------------------------------------------------------------ #
-    #  Главное меню (до входа)                                            #
+    #  Стартовое меню (административная панель)                            #
     # ------------------------------------------------------------------ #
     def action_register():
         system.register_patient()
@@ -138,14 +134,34 @@ def main():
             current_patient = patient
             run_patient_panel()
 
+    def action_show_all():
+        system.show_all_patients()
+
+    def action_admin_edit():
+        system.admin_edit_patient()
+
+    def action_delete():
+        system.delete_patient()
+
+    def action_save():
+        system.save_to_file()
+
+    def action_load():
+        system.load_from_file()
+
     def action_exit():
         io.message("\nСпасибо за использование системы «ЗдравГарант». До свидания!")
         raise SystemExit
 
     main_menu = {
-        1: ("Регистрация", action_register),
-        2: ("Вход", action_login),
-        3: ("Выход", action_exit),
+        1: ("Регистрация пользователя", action_register),
+        2: ("Вход как пользователь", action_login),
+        3: ("Просмотр всех пользователей", action_show_all),
+        4: ("Редактирование пользователя", action_admin_edit),
+        5: ("Удаление пользователя", action_delete),
+        6: ("Сохранение в файл", action_save),
+        7: ("Загрузка из файла", action_load),
+        8: ("Завершить программу", action_exit),
     }
 
     while True:

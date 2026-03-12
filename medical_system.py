@@ -198,6 +198,121 @@ class MedicalSystem:
         self.io.display_list(records, f"История записей — {patient.full_name}")
 
     # ------------------------------------------------------------------ #
+    #  Административные операции                                          #
+    # ------------------------------------------------------------------ #
+    def show_all_patients(self):
+        """Вывод списка всех пациентов (без пароля)."""
+        if not self.patients:
+            self.io.display_list([], "Все пациенты")
+            return
+        lines = [
+            f"[{p.id}] {p.full_name}, возраст: {p.age}"
+            for p in self.patients
+        ]
+        self.io.display_list(lines, "Все пациенты")
+
+    def admin_edit_patient(self):
+        """Административное редактирование пациента (без проверки пароля).
+
+        Позволяет выбрать пациента по ID и изменить любое поле.
+        При смене пароля соблюдается валидация сложности и подтверждение.
+        """
+        self.io.message("\n--- Редактирование пользователя (админ) ---")
+        self.io.message("  (для отмены введите cancel)")
+        try:
+            self.show_all_patients()
+            pid = self.io.input_str("  Введите ID пациента: ")
+            patient = self.find_patient_by_id(pid)
+            if not patient:
+                self.io.error("Пациент не найден.")
+                return
+
+            self.io.message(f"  Выбран: {patient}")
+
+            back = False
+
+            def _edit_last():
+                self.io.message(f"\n  Текущая фамилия: {patient.last_name}")
+                val = self.io.input_str("  Новая фамилия: ")
+                patient.edit(last_name=val)
+                self.io.success(f"Фамилия изменена на '{patient.last_name}'.")
+
+            def _edit_first():
+                self.io.message(f"\n  Текущее имя: {patient.first_name}")
+                val = self.io.input_str("  Новое имя: ")
+                patient.edit(first_name=val)
+                self.io.success(f"Имя изменено на '{patient.first_name}'.")
+
+            def _edit_middle():
+                current = patient.middle_name if patient.middle_name else "(не указано)"
+                self.io.message(f"\n  Текущее отчество: {current}")
+                val = self.io.input_optional_str("  Новое отчество (Enter — убрать): ")
+                patient.edit(middle_name=val)
+                self.io.success("Отчество обновлено.")
+
+            def _edit_age():
+                self.io.message(f"\n  Текущий возраст: {patient.age}")
+                val = self.io.input_positive_int("  Новый возраст: ")
+                patient.edit(age=val)
+                self.io.success(f"Возраст изменён на {patient.age}.")
+
+            def _edit_pwd():
+                self.io.message("\n--- Смена пароля (админ) ---")
+                new_pwd = self._input_password_with_confirm()
+                patient.edit(password=new_pwd)
+                self.io.success("Пароль изменён.")
+
+            def _go_back():
+                nonlocal back
+                back = True
+
+            edit_menu = {
+                1: ("Изменить фамилию", _edit_last),
+                2: ("Изменить имя", _edit_first),
+                3: ("Изменить отчество", _edit_middle),
+                4: ("Изменить возраст", _edit_age),
+                5: ("Изменить пароль", _edit_pwd),
+                6: ("Назад", _go_back),
+            }
+            while not back:
+                self.io.message(f"\n  Редактирование: {patient}")
+                self.io.show_menu(edit_menu)
+                choice = self.io.input_choice(edit_menu)
+                edit_menu[choice][1]()
+
+        except CancelAction:
+            self.io.message("  Редактирование отменено.")
+
+    def delete_patient(self):
+        """Удаление пациента и всех его записей."""
+        self.io.message("\n--- Удаление пользователя ---")
+        self.io.message("  (для отмены введите cancel)")
+        try:
+            self.show_all_patients()
+            pid = self.io.input_str("  Введите ID пациента для удаления: ")
+            patient = self.find_patient_by_id(pid)
+            if not patient:
+                self.io.error("Пациент не найден.")
+                return
+
+            self.io.message(f"  Будет удалён: {patient}")
+            if not self.io.confirm("  Подтвердите удаление"):
+                self.io.message("  Удаление отменено.")
+                return
+
+            self.appointments = [
+                a for a in self.appointments if a.patient_id != patient.id
+            ]
+            self.patients.remove(patient)
+            self.io.success(
+                f"Пациент {patient.full_name} ({patient.id}) "
+                f"и все его записи удалены."
+            )
+
+        except CancelAction:
+            self.io.message("  Удаление отменено.")
+
+    # ------------------------------------------------------------------ #
     #  Запись на диагностику                                              #
     # ------------------------------------------------------------------ #
     def add_appointment(self, patient: Patient):
@@ -367,7 +482,7 @@ class MedicalSystem:
         self.io.success("Данные системы очищены.")
 
     # ------------------------------------------------------------------ #
-    #  Сохранение / загрузка (остаются для архитектуры лабораторной)       #
+    #  Сохранение / загрузка                                              #
     # ------------------------------------------------------------------ #
     def save_to_file(self):
         """Сохранение состояния системы в файл."""
