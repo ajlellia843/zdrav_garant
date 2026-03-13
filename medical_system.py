@@ -544,7 +544,7 @@ class MedicalSystem:
     # ------------------------------------------------------------------ #
     #  Сохранение / загрузка                                              #
     # ------------------------------------------------------------------ #
-    def _build_save_filename(self) -> str:
+    def _build_filename(self) -> str:
         """Запрашивает имя и расширение файла, собирает полное имя.
 
         Defaults: имя = 'zdrav_garant', расширение = 'pkl'.
@@ -567,7 +567,7 @@ class MedicalSystem:
         self.io.message("\n--- Сохранение в файл ---")
         self.io.message("  (для отмены введите cancel)")
         try:
-            filename = self._build_save_filename()
+            filename = self._build_filename()
             data = {
                 "patients": self.patients,
                 "doctors": self.doctors,
@@ -587,7 +587,7 @@ class MedicalSystem:
         self.io.message("\n--- Загрузка из файла ---")
         self.io.message("  (для отмены введите cancel)")
         try:
-            filename = self.io.input_str("  Введите полное имя файла: ")
+            filename = self._build_filename()
             data, msg = self.storage.load(filename)
             if data is not None:
                 self.patients = data.get("patients", [])
