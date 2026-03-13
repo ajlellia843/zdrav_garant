@@ -17,8 +17,6 @@ class MedicalSystem:
     Клиники и врачи соответствуют дизайну проекта «ЗдравГарант».
     """
 
-    SAVE_FILE = "zdrav_garant.pkl"
-
     def __init__(self):
         self.patients: list[Patient] = []
         self.doctors: list[Doctor] = []
@@ -546,32 +544,62 @@ class MedicalSystem:
     # ------------------------------------------------------------------ #
     #  Сохранение / загрузка                                              #
     # ------------------------------------------------------------------ #
+    def _build_save_filename(self) -> str:
+        """Запрашивает имя и расширение файла, собирает полное имя.
+
+        Defaults: имя = 'zdrav_garant', расширение = 'pkl'.
+        Raises CancelAction при отмене.
+        """
+        raw_name = self.io.input_optional_str(
+            "  Имя файла (Enter — zdrav_garant): "
+        )
+        name = raw_name if raw_name else "zdrav_garant"
+
+        raw_ext = self.io.input_optional_str(
+            "  Расширение (Enter — pkl): "
+        )
+        ext = raw_ext.strip().lstrip(".") if raw_ext else "pkl"
+
+        return f"{name}.{ext}"
+
     def save_to_file(self):
         """Сохранение состояния системы в файл."""
-        data = {
-            "patients": self.patients,
-            "doctors": self.doctors,
-            "clinics": self.clinics,
-            "appointments": self.appointments,
-        }
-        ok, msg = self.storage.save(data, self.SAVE_FILE)
-        if ok:
-            self.io.success(msg)
-        else:
-            self.io.error(msg)
+        self.io.message("\n--- Сохранение в файл ---")
+        self.io.message("  (для отмены введите cancel)")
+        try:
+            filename = self._build_save_filename()
+            data = {
+                "patients": self.patients,
+                "doctors": self.doctors,
+                "clinics": self.clinics,
+                "appointments": self.appointments,
+            }
+            ok, msg = self.storage.save(data, filename)
+            if ok:
+                self.io.success(f"Данные сохранены в '{filename}'.")
+            else:
+                self.io.error(msg)
+        except CancelAction:
+            self.io.message("  Сохранение отменено.")
 
     def load_from_file(self):
         """Загрузка состояния системы из файла."""
-        data, msg = self.storage.load(self.SAVE_FILE)
-        if data is not None:
-            self.patients = data.get("patients", [])
-            self.doctors = data.get("doctors", [])
-            self.clinics = data.get("clinics", [])
-            self.appointments = data.get("appointments", [])
-            self._ensure_demo_data()
-            self.io.success(msg)
-        else:
-            self.io.error(msg)
+        self.io.message("\n--- Загрузка из файла ---")
+        self.io.message("  (для отмены введите cancel)")
+        try:
+            filename = self.io.input_str("  Введите полное имя файла: ")
+            data, msg = self.storage.load(filename)
+            if data is not None:
+                self.patients = data.get("patients", [])
+                self.doctors = data.get("doctors", [])
+                self.clinics = data.get("clinics", [])
+                self.appointments = data.get("appointments", [])
+                self._ensure_demo_data()
+                self.io.success(f"Данные загружены из '{filename}'.")
+            else:
+                self.io.error(msg)
+        except CancelAction:
+            self.io.message("  Загрузка отменена.")
 
     def _ensure_demo_data(self):
         """Добавляет демо-клиники и врачей, если они отсутствуют после загрузки."""
