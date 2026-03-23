@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'save' %}Сохранение{% else %}Загрузка{% endif %} — ЗдравГарант{% endblock %}
+{% block header_subtitle %}{% if mode == 'save' %}Сохранение данных{% else %}Загрузка данных{% endif %}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">
+    {% if mode == 'save' %}Сохранение в файл{% else %}Загрузка из файла{% endif %}
+</h1>
+<p class="page-subtitle">
+    {% if mode == 'save' %}
+        Сохраните текущее состояние системы в файл.
+    {% else %}
+        Загрузите ранее сохранённое состояние системы.
+    {% endif %}
+</p>
+
+<div class="save-load-nav">
+    <a href="{{ url_for('save') }}"
+       class="btn {% if mode == 'save' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">
+        Сохранение
+    </a>
+    <a href="{{ url_for('load') }}"
+       class="btn {% if mode == 'load' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">
+        Загрузка
+    </a>
+</div>
+
+<div class="save-load-card">
+    <h3>{% if mode == 'save' %}Параметры сохранения{% else %}Параметры загрузки{% endif %}</h3>
+
+    <form method="POST" action="{{ url_for(mode) }}">
+        <div class="form-group">
+            <label class="form-label">
+                Имя файла
+                <span style="color:#94a3b8; font-weight:400;">(Enter — zdrav_garant)</span>
+            </label>
+            <input type="text" name="filename" class="form-input"
+                   placeholder="zdrav_garant">
+        </div>
+        <div class="form-group">
+            <label class="form-label">
+                Расширение
+                <span style="color:#94a3b8; font-weight:400;">(Enter — pkl)</span>
+            </label>
+            <input type="text" name="extension" class="form-input"
+                   placeholder="pkl">
+        </div>
+        <button type="submit" class="btn btn-primary">
+            {% if mode == 'save' %}Сохранить{% else %}Загрузить{% endif %}
+        </button>
+    </form>
+</div>
+
+<div style="margin-top:16px;">
+    <a href="{{ url_for('admin') }}" class="btn btn-outline btn-sm">&larr; Назад к админ-панели</a>
+</div>
+{% endblock %}

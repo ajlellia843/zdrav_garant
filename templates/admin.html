@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Админ-панель — ЗдравГарант{% endblock %}
+{% block header_subtitle %}Администрирование{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Панель администратора</h1>
+<p class="page-subtitle">Управление пациентами и данными системы.</p>
+
+<div style="margin-bottom:20px; display:flex; gap:12px;">
+    <a href="{{ url_for('save') }}" class="btn btn-primary btn-sm">Сохранить в файл</a>
+    <a href="{{ url_for('load') }}" class="btn btn-outline btn-sm">Загрузить из файла</a>
+</div>
+
+{% if patients %}
+<table class="admin-table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>ФИО</th>
+            <th>Возраст</th>
+            <th>Email</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in patients %}
+        <tr>
+            <td>{{ p.id }}</td>
+            <td>{{ p.full_name }}</td>
+            <td>{{ p.age }}</td>
+            <td>{{ p.email }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('admin_delete', patient_id=p.id) }}"
+                      onsubmit="return confirm('Удалить пациента {{ p.full_name }}?')">
+                    <button type="submit" class="btn btn-danger btn-sm">Удалить</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>Пациенты не зарегистрированы</p>
+</div>
+{% endif %}
+{% endblock %}

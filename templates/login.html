@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Вход — ЗдравГарант{% endblock %}
+{% block header_subtitle %}{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card">
+        <div class="auth-title">ЗдравГарант</div>
+        <div class="auth-subtitle">Вход в систему управления пациентами</div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="form-group">
+                <label class="form-label">Идентификатор пациента</label>
+                <input type="text" name="login" class="form-input"
+                       placeholder="PG-XXXXX или email">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Пароль доступа</label>
+                <input type="password" name="password" class="form-input"
+                       placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">
+                Войти в систему
+            </button>
+        </form>
+        <div class="auth-link">
+            Нет аккаунта? <a href="{{ url_for('register') }}">Регистрация</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Клинический обзор — ЗдравГарант{% endblock %}
+{% block header_subtitle %}Клинический обзор{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Запись на диагностику</h1>
+<p class="page-subtitle">Выберите специализированный клинический центр и доступного специалиста.</p>
+
+<div class="cards-grid">
+    {% for clinic in clinics %}
+    <a href="{{ url_for('dashboard', clinic_id=clinic.clinic_id) }}"
+       class="card {% if selected_clinic and selected_clinic.clinic_id == clinic.clinic_id %}selected{% endif %}">
+        <div class="card-title">{{ clinic.clinic_name }}</div>
+        <div class="card-subtitle">{{ clinic.department }}</div>
+    </a>
+    {% endfor %}
+</div>
+
+{% if selected_clinic %}
+<div class="doctors-section">
+    <h3 style="font-size:16px; font-weight:600; margin-bottom:4px;">
+        {{ selected_clinic.clinic_name }}
+    </h3>
+    <p class="page-subtitle" style="margin-bottom:12px;">Выберите врача</p>
+
+    {% if doctors %}
+    <form method="POST" action="{{ url_for('create_appointment') }}">
+        <input type="hidden" name="clinic_id" value="{{ selected_clinic.clinic_id }}">
+
+        <div class="doctors-grid" id="doctors-grid">
+            {% for doctor in doctors %}
+            <label class="doctor-card" onclick="selectDoctor(this, {{ doctor.id }})">
+                <div class="doctor-name">{{ doctor.full_name }}</div>
+                <div class="doctor-spec">{{ doctor.specialization }}</div>
+            </label>
+            {% endfor %}
+        </div>
+
+        <input type="hidden" name="doctor_id" id="doctor-id-input" value="">
+
+        <div class="appointment-form mt-16">
+            <h3 style="font-size:15px; font-weight:600; margin-bottom:12px;">
+                Подтвердить график диагностики
+            </h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Дата приёма</label>
+                    <input type="text" name="date" class="form-input"
+                           placeholder="дд.мм.гггг" required>
+                </div>
+                <div class="form-group" style="flex:0 0 auto;">
+                    <button type="submit" class="btn btn-primary">
+                        Подтвердить график диагностики
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+    {% else %}
+    <div class="empty-state">
+        <p>Инициализация списка специалистов...</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+function selectDoctor(el, doctorId) {
+    document.querySelectorAll('.doctor-card').forEach(function(c) {
+        c.classList.remove('selected');
+    });
+    el.classList.add('selected');
+    document.getElementById('doctor-id-input').value = doctorId;
+}
+</script>
+{% endblock %}
