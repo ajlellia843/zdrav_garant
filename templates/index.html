@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block title %}ЗдравГарант — Главная{% endblock %}
-{% block header_subtitle %}Главная страница{% endblock %}
 
 {% block content %}
 <div class="landing">
@@ -16,8 +15,8 @@
             и запишитесь на приём всего за несколько минут.
         </p>
         <div class="landing-cta">
-            <a href="{{ url_for('register') }}" class="btn btn-light">Регистрация</a>
-            <a href="{{ url_for('login') }}" class="btn btn-outline-light">Войти в систему</a>
+            <a href="{{ url_for('register') }}" class="btn btn-primary">Регистрация</a>
+            <a href="{{ url_for('login') }}" class="btn btn-outline">Войти в систему</a>
         </div>
     </div>
     <div class="landing-right">

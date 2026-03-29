@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Вход — ЗдравГарант{% endblock %}
-{% block header_subtitle %}{% endblock %}
 
 {% block content %}
 <div class="auth-wrapper">
+    <a href="{{ url_for('index') }}" class="auth-back-link">&larr; На главную</a>
     <div class="auth-card">
         <div class="auth-title">ЗдравГарант</div>
         <div class="auth-subtitle">Вход в систему управления пациентами</div>

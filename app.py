@@ -107,9 +107,17 @@ def register():
         password = request.form.get("password", "")
         confirm = request.form.get("confirm_password", "")
 
+        form_data = {
+            "last_name": last_name,
+            "first_name": first_name,
+            "middle_name": middle_name,
+            "age": age_str,
+            "email": email,
+        }
+
         if not last_name or not first_name or not age_str or not email or not password:
             flash("Все обязательные поля должны быть заполнены.", "error")
-            return render_template("register.html")
+            return render_template("register.html", **form_data)
 
         try:
             age = int(age_str)
@@ -117,25 +125,25 @@ def register():
                 raise ValueError
         except ValueError:
             flash("Возраст должен быть положительным целым числом.", "error")
-            return render_template("register.html")
+            return render_template("register.html", **form_data)
 
         email_ok, email_err = validate_email(email)
         if not email_ok:
             flash(email_err, "error")
-            return render_template("register.html")
+            return render_template("register.html", **form_data)
 
         if not system._is_email_unique(email):
             flash("Этот email уже зарегистрирован.", "error")
-            return render_template("register.html")
+            return render_template("register.html", **form_data)
 
         pwd_ok, pwd_errors = validate_password(password)
         if not pwd_ok:
             flash("Пароль не соответствует требованиям: " + "; ".join(pwd_errors), "error")
-            return render_template("register.html")
+            return render_template("register.html", **form_data)
 
         if password != confirm:
             flash("Пароли не совпадают.", "error")
-            return render_template("register.html")
+            return render_template("register.html", **form_data)
 
         pid = system._next_patient_id()
         patient = Patient(pid, last_name, first_name, age, password, email, middle_name)
@@ -314,26 +322,21 @@ def security():
 @login_required
 def update_profile():
     patient = _current_patient()
-    field = request.form.get("field")
-    value = request.form.get("value", "").strip()
+    last_name = request.form.get("last_name", "").strip()
+    first_name = request.form.get("first_name", "").strip()
+    middle_name = request.form.get("middle_name", "").strip()
     current_password = request.form.get("current_password", "")
 
     if current_password != patient.password:
         flash("Неверный пароль. Изменение отклонено.", "error")
         return redirect(url_for("security"))
 
-    if field == "last_name" and value:
-        patient.edit(last_name=value)
-        flash(f"Фамилия изменена на '{patient.last_name}'.", "success")
-    elif field == "first_name" and value:
-        patient.edit(first_name=value)
-        flash(f"Имя изменено на '{patient.first_name}'.", "success")
-    elif field == "middle_name":
-        patient.edit(middle_name=value)
-        flash("Отчество обновлено.", "success")
-    else:
-        flash("Некорректные данные.", "error")
+    if not last_name or not first_name:
+        flash("Фамилия и имя не могут быть пустыми.", "error")
+        return redirect(url_for("security"))
 
+    patient.edit(last_name=last_name, first_name=first_name, middle_name=middle_name)
+    flash("Данные профиля обновлены.", "success")
     return redirect(url_for("security"))
 
 

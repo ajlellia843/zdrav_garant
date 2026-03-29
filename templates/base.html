@@ -9,14 +9,13 @@
 <body>
 
 <header class="header">
-    <div class="header-brand">ЗдравГарант</div>
-    <div class="header-subtitle">{% block header_subtitle %}{% endblock %}</div>
+    <div class="header-brand"><a href="{{ url_for('index') }}">ЗдравГарант</a></div>
     <nav class="header-nav">
         {% if current_patient %}
             <span class="header-user">{{ current_patient.full_name }}</span>
         {% else %}
-            <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-sm">Регистрация</a>
-            <a href="{{ url_for('login') }}" class="btn btn-light btn-sm">Войти в систему</a>
+            <a href="{{ url_for('register') }}" class="btn btn-outline btn-sm">Регистрация</a>
+            <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">Войти в систему</a>
         {% endif %}
     </nav>
 </header>
@@ -24,9 +23,6 @@
 <div class="layout">
     {% if current_patient %}
     <aside class="sidebar">
-        <div class="sidebar-avatar">
-            {{ current_patient.last_name[0] }}{{ current_patient.first_name[0] }}
-        </div>
         <nav class="sidebar-nav">
             <a href="{{ url_for('dashboard') }}" class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">Главная панель</a>
             <a href="{{ url_for('history') }}" class="sidebar-link {% if request.endpoint == 'history' %}active{% endif %}">История записей</a>
