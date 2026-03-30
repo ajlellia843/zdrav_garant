@@ -4,13 +4,8 @@
 Стартовое меню выполняет роль административной панели.
 """
 
-import json
-import os
-import time
-
 from medical_system import load_system
 from console_io import ConsoleIO
-from data_paths import DEFAULT_SAVE_PATH
 
 
 def main():
@@ -162,37 +157,8 @@ def main():
     def action_load():
         system.load_from_file()
 
-    # #region agent log
-    def _debug_log(hypothesisId: str, location: str, message: str, data: dict | None = None) -> None:
-        log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug-4d3e32.log")
-        payload = {
-            "sessionId": "4d3e32",
-            "runId": "pre-fix",
-            "hypothesisId": hypothesisId,
-            "id": f"log_{int(time.time() * 1000)}",
-            "timestamp": int(time.time() * 1000),
-            "location": location,
-            "message": message,
-            "data": data or {},
-        }
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
-    # #endregion
-
     def action_exit():
         io.message("\nСпасибо за использование системы «ЗдравГарант». До свидания!")
-        # #region agent log
-        _debug_log(
-            "H1",
-            "main.py:action_exit",
-            "Exit selected from menu; system.save_to_file() is NOT called in current behavior.",
-            {
-                "calling_save_to_file": False,
-                "save_path": DEFAULT_SAVE_PATH,
-                "save_file_exists": os.path.isfile(DEFAULT_SAVE_PATH),
-            },
-        )
-        # #endregion
         raise SystemExit
 
     main_menu = {
