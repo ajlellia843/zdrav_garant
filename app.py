@@ -10,7 +10,7 @@ from datetime import datetime, date
 
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, flash,
+    url_for, session, flash, abort,
 )
 
 from medical_system import MedicalSystem
@@ -43,6 +43,20 @@ def login_required(view):
         if not _current_patient():
             flash("Необходимо войти в систему.", "error")
             return redirect(url_for("login"))
+        return view(**kwargs)
+    return wrapped
+
+
+def admin_required(view):
+    """Декоратор: только для пользователей с ролью admin."""
+    @functools.wraps(view)
+    def wrapped(**kwargs):
+        patient = _current_patient()
+        if not patient:
+            flash("Необходимо войти в систему.", "error")
+            return redirect(url_for("login"))
+        if getattr(patient, "role", "user") != "admin":
+            abort(403)
         return view(**kwargs)
     return wrapped
 
@@ -146,7 +160,8 @@ def register():
             return render_template("register.html", **form_data)
 
         pid = system._next_patient_id()
-        patient = Patient(pid, last_name, first_name, age, password, email, middle_name)
+        patient = Patient(pid, last_name, first_name, age, password, email,
+                          middle_name, role="user")
         system.patients.append(patient)
 
         session["patient_id"] = str(patient.id)
@@ -390,16 +405,92 @@ def update_password():
 #  Админ-панель                                                       #
 # ------------------------------------------------------------------ #
 
+def _count_admins():
+    return sum(1 for p in system.patients if getattr(p, "role", "user") == "admin")
+
+
 @app.route("/admin")
+@admin_required
 def admin():
     return render_template("admin.html", patients=system.patients)
 
 
+@app.route("/admin/edit/<patient_id>", methods=["GET", "POST"])
+@admin_required
+def admin_edit(patient_id):
+    patient = system.find_patient_by_id(patient_id)
+    if not patient:
+        flash("Пациент не найден.", "error")
+        return redirect(url_for("admin"))
+
+    if request.method == "POST":
+        last_name = request.form.get("last_name", "").strip()
+        first_name = request.form.get("first_name", "").strip()
+        middle_name = request.form.get("middle_name", "").strip()
+        age_str = request.form.get("age", "").strip()
+        email = request.form.get("email", "").strip()
+        new_role = request.form.get("role", "user").strip()
+        password = request.form.get("password", "")
+
+        if not last_name or not first_name:
+            flash("Фамилия и имя обязательны.", "error")
+            return render_template("admin_edit.html", patient=patient)
+
+        try:
+            age = int(age_str)
+            if age <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            flash("Возраст должен быть положительным числом.", "error")
+            return render_template("admin_edit.html", patient=patient)
+
+        if not validate_email(email):
+            flash("Некорректный формат email.", "error")
+            return render_template("admin_edit.html", patient=patient)
+
+        existing = system.find_patient_by_email(email)
+        if existing and existing.id != patient.id:
+            flash("Этот email уже зарегистрирован.", "error")
+            return render_template("admin_edit.html", patient=patient)
+
+        if getattr(patient, "role", "user") == "admin" and new_role != "admin":
+            if _count_admins() <= 1:
+                flash("Невозможно понизить последнего администратора.", "error")
+                return render_template("admin_edit.html", patient=patient)
+
+        pwd_update = None
+        if password:
+            ok, msg = validate_password(password)
+            if not ok:
+                flash(msg, "error")
+                return render_template("admin_edit.html", patient=patient)
+            pwd_update = password
+
+        patient.edit(
+            last_name=last_name,
+            first_name=first_name,
+            middle_name=middle_name,
+            age=age,
+            email=email,
+            role=new_role,
+            password=pwd_update,
+        )
+        flash(f"Данные пациента {patient.full_name} обновлены.", "success")
+        return redirect(url_for("admin"))
+
+    return render_template("admin_edit.html", patient=patient)
+
+
 @app.route("/admin/delete/<patient_id>", methods=["POST"])
+@admin_required
 def admin_delete(patient_id):
     patient = system.find_patient_by_id(patient_id)
     if not patient:
         flash("Пациент не найден.", "error")
+        return redirect(url_for("admin"))
+
+    if getattr(patient, "role", "user") == "admin" and _count_admins() <= 1:
+        flash("Невозможно удалить последнего администратора.", "error")
         return redirect(url_for("admin"))
 
     system.appointments = [
@@ -419,6 +510,7 @@ def admin_delete(patient_id):
 # ------------------------------------------------------------------ #
 
 @app.route("/save", methods=["GET", "POST"])
+@admin_required
 def save():
     if request.method == "POST":
         raw_name = request.form.get("filename", "").strip()
@@ -446,6 +538,7 @@ def save():
 
 
 @app.route("/load", methods=["GET", "POST"])
+@admin_required
 def load():
     if request.method == "POST":
         raw_name = request.form.get("filename", "").strip()

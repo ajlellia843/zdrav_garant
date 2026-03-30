@@ -175,9 +175,14 @@ class MedicalSystem:
 
             password = self._input_password_with_confirm()
 
+            role_input = self.io.input_optional_str(
+                "  Роль (admin/user, Enter — user): "
+            )
+            role = role_input if role_input in ("admin", "user") else "user"
+
             pid = self._next_patient_id()
             patient = Patient(pid, last_name, first_name, age, password,
-                              email, middle_name)
+                              email, middle_name, role=role)
             self.patients.append(patient)
 
             self.io.success(f"Пациент '{patient.full_name}' зарегистрирован.")

@@ -37,6 +37,9 @@
             <a href="{{ url_for('dashboard') }}" class="sidebar-link {% if request.endpoint == 'dashboard' %}active{% endif %}">Главная панель</a>
             <a href="{{ url_for('history') }}" class="sidebar-link {% if request.endpoint == 'history' %}active{% endif %}">История записей</a>
             <a href="{{ url_for('security') }}" class="sidebar-link {% if request.endpoint == 'security' %}active{% endif %}">Настройки безопасности</a>
+            {% if current_patient and current_patient.role|default('user') == 'admin' %}
+            <a href="{{ url_for('admin') }}" class="sidebar-link {% if request.endpoint in ('admin', 'admin_edit') %}active{% endif %}">Админ-панель</a>
+            {% endif %}
             <a href="{{ url_for('logout') }}" class="sidebar-link sidebar-link-logout">Выйти из системы</a>
         </nav>
         <div class="sidebar-status">Система активна</div>
@@ -55,6 +58,16 @@ document.addEventListener('DOMContentLoaded', function() {
             t.classList.add('toast-hide');
             setTimeout(function() { t.remove(); }, 400);
         }, 5000);
+    });
+
+    document.querySelectorAll('.password-toggle').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var input = this.parentElement.querySelector('input');
+            var isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            this.querySelector('.eye-open').style.display = isPassword ? 'none' : 'block';
+            this.querySelector('.eye-closed').style.display = isPassword ? 'block' : 'none';
+        });
     });
 });
 </script>

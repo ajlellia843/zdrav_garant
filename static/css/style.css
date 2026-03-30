@@ -275,13 +275,12 @@ a { text-decoration: none; color: inherit; }
 }
 
 .card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,.12);
-    transform: translateY(-2px);
+    border-color: var(--color-primary);
 }
 
 .card.selected {
     border-color: var(--color-primary);
-    box-shadow: 0 4px 12px rgba(15,52,96,.2);
+    background: var(--color-accent-light);
 }
 
 .card-title {
@@ -739,6 +738,31 @@ a { text-decoration: none; color: inherit; }
 .reschedule-inline .btn {
     padding: 6px 14px;
     font-size: 13px;
+}
+
+/* ----------------------- Password toggle --------------- */
+
+.password-wrapper {
+    position: relative;
+}
+.password-wrapper .form-input {
+    padding-right: 42px;
+}
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+.password-toggle:hover {
+    color: var(--color-text);
 }
 
 /* ----------------------- Helpers ---------------------- */
