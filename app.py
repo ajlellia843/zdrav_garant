@@ -1,4 +1,4 @@
-﻿"""Веб-точка входа приложения «ЗдравГарант» на Flask.
+"""Веб-точка входа приложения «ЗдравГарант» на Flask.
 
 Использует MedicalSystem как сервис данных.
 Консольная версия (main.py) остаётся без изменений.
@@ -6,6 +6,8 @@
 
 import os
 import functools
+import json
+import time
 from datetime import datetime, date
 
 from flask import (
@@ -23,6 +25,34 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "zdrav-garant-secret-key")
 
 system = load_system()
+
+# #region agent log
+def _debug_log(hypothesisId: str, location: str, message: str, data: dict | None = None) -> None:
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug-4d3e32.log")
+    payload = {
+        "sessionId": "4d3e32",
+        "runId": "pre-fix",
+        "hypothesisId": hypothesisId,
+        "id": f"log_{int(time.time() * 1000)}",
+        "timestamp": int(time.time() * 1000),
+        "location": location,
+        "message": message,
+        "data": data or {},
+    }
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+_debug_log(
+    "H5",
+    "app.py:web_startup",
+    "Web app initialized by calling load_system() once at import/startup.",
+    {
+        "save_path": DEFAULT_SAVE_PATH,
+        "save_file_exists": os.path.isfile(DEFAULT_SAVE_PATH),
+        "patients_count": len(system.patients),
+    },
+)
+# #endregion
 
 
 # ------------------------------------------------------------------ #

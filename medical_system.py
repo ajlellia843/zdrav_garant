@@ -1,6 +1,8 @@
 """Модуль с контейнерным классом MedicalSystem."""
 
 import os
+import json
+import time
 
 from patient import Patient
 from doctor import Doctor
@@ -10,6 +12,24 @@ from console_io import ConsoleIO
 from storage import PickleStorage
 from data_paths import DEFAULT_SAVE_PATH, ensure_data_dir
 from exceptions import CancelAction
+
+
+# #region agent log
+def _debug_log(hypothesisId: str, location: str, message: str, data: dict | None = None) -> None:
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug-4d3e32.log")
+    payload = {
+        "sessionId": "4d3e32",
+        "runId": "pre-fix",
+        "hypothesisId": hypothesisId,
+        "id": f"log_{int(time.time() * 1000)}",
+        "timestamp": int(time.time() * 1000),
+        "location": location,
+        "message": message,
+        "data": data or {},
+    }
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+# #endregion
 
 
 class MedicalSystem:
@@ -555,11 +575,38 @@ class MedicalSystem:
     def save_to_file(self):
         """Сохранение состояния в общий файл данных (консоль и веб)."""
         self.io.message("\n--- Сохранение в файл ---")
+        # #region agent log
+        _debug_log(
+            "H2",
+            "medical_system.py:save_to_file:start",
+            "save_to_file was invoked (check save path).",
+            {
+                "save_path": DEFAULT_SAVE_PATH,
+                "patients_count": len(self.patients),
+                "doctors_count": len(self.doctors),
+                "clinics_count": len(self.clinics),
+                "appointments_count": len(self.appointments),
+                "save_file_exists_before": os.path.isfile(DEFAULT_SAVE_PATH),
+            },
+        )
+        # #endregion
         ok, msg = save_system_to_path(self, DEFAULT_SAVE_PATH)
         if ok:
             self.io.success(f"Данные сохранены в '{DEFAULT_SAVE_PATH}'.")
         else:
             self.io.error(msg)
+        # #region agent log
+        _debug_log(
+            "H3",
+            "medical_system.py:save_to_file:end",
+            "save_to_file finished.",
+            {
+                "ok": ok,
+                "msg": msg,
+                "save_file_exists_after": os.path.isfile(DEFAULT_SAVE_PATH),
+            },
+        )
+        # #endregion
 
     def load_from_file(self):
         """Загрузка состояния из общего файла данных (консоль и веб)."""
@@ -624,6 +671,18 @@ def load_system() -> MedicalSystem:
     ensure_data_dir()
     storage = PickleStorage()
     path = DEFAULT_SAVE_PATH
+    save_file_exists_before = os.path.isfile(path)
+    # #region agent log
+    _debug_log(
+        "H4",
+        "medical_system.py:load_system:start",
+        "load_system started; check whether save file exists and will be loaded.",
+        {
+            "save_path": path,
+            "save_file_exists_before": save_file_exists_before,
+        },
+    )
+    # #endregion
 
     if not os.path.isfile(path):
         system = MedicalSystem()
@@ -632,6 +691,21 @@ def load_system() -> MedicalSystem:
             raise RuntimeError(
                 f"Не удалось создать начальный файл данных '{path}': {msg}"
             )
+        # #region agent log
+        _debug_log(
+            "H4",
+            "medical_system.py:load_system:created",
+            "No save file found; created initial system and persisted it.",
+            {
+                "save_path": path,
+                "save_file_exists_after": os.path.isfile(path),
+                "patients_count": len(system.patients),
+                "doctors_count": len(system.doctors),
+                "clinics_count": len(system.clinics),
+                "appointments_count": len(system.appointments),
+            },
+        )
+        # #endregion
         return system
 
     data, msg = storage.load(path)
@@ -648,6 +722,20 @@ def load_system() -> MedicalSystem:
     system.clinics = data.get("clinics", [])
     system.appointments = data.get("appointments", [])
     system._ensure_demo_data()
+    # #region agent log
+    _debug_log(
+        "H4",
+        "medical_system.py:load_system:loaded",
+        "Save file loaded into in-memory system.",
+        {
+            "save_path": path,
+            "patients_count": len(system.patients),
+            "doctors_count": len(system.doctors),
+            "clinics_count": len(system.clinics),
+            "appointments_count": len(system.appointments),
+        },
+    )
+    # #endregion
     return system
 
 
