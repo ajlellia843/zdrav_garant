@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}{% if mode == 'save' %}Сохранение{% else %}Загрузка{% endif %} — ЗдравГарант{% endblock %}
 
 {% block content %}
@@ -11,6 +11,10 @@
     {% else %}
         Загрузите ранее сохранённое состояние системы.
     {% endif %}
+</p>
+<p class="page-subtitle" style="margin-top:-20px; font-size:13px;">
+    Общий файл данных (консоль и веб), если оставить поля пустыми:
+    <code style="word-break:break-all;">{{ default_save_path }}</code>
 </p>
 
 <div class="save-load-nav">
@@ -31,7 +35,7 @@
         <div class="form-group">
             <label class="form-label">
                 Имя файла
-                <span style="color:#94a3b8; font-weight:400;">(Enter — zdrav_garant)</span>
+                <span style="color:#94a3b8; font-weight:400;">(пусто — общий файл; иначе имя в папке data)</span>
             </label>
             <input type="text" name="filename" class="form-input"
                    placeholder="zdrav_garant">
@@ -39,7 +43,7 @@
         <div class="form-group">
             <label class="form-label">
                 Расширение
-                <span style="color:#94a3b8; font-weight:400;">(Enter — pkl)</span>
+                <span style="color:#94a3b8; font-weight:400;">(пусто — pkl)</span>
             </label>
             <input type="text" name="extension" class="form-input"
                    placeholder="pkl">
@@ -54,3 +58,4 @@
     <a href="{{ url_for('admin') }}" class="btn btn-outline btn-sm">&larr; Назад к админ-панели</a>
 </div>
 {% endblock %}
+

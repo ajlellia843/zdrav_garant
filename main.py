@@ -4,13 +4,17 @@
 Стартовое меню выполняет роль административной панели.
 """
 
-from medical_system import MedicalSystem
+from medical_system import load_system
 from console_io import ConsoleIO
 
 
 def main():
     """Главная функция приложения."""
-    system = MedicalSystem()
+    try:
+        system = load_system()
+    except RuntimeError as e:
+        print(f"Ошибка загрузки данных: {e}")
+        return
     io = ConsoleIO()
     current_patient = None
 

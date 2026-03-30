@@ -1,11 +1,14 @@
 """Модуль с контейнерным классом MedicalSystem."""
 
+import os
+
 from patient import Patient
 from doctor import Doctor
 from clinic import Clinic
 from appointment import Appointment
 from console_io import ConsoleIO
 from storage import PickleStorage
+from data_paths import DEFAULT_SAVE_PATH, ensure_data_dir
 from exceptions import CancelAction
 
 
@@ -549,62 +552,33 @@ class MedicalSystem:
     # ------------------------------------------------------------------ #
     #  Сохранение / загрузка                                              #
     # ------------------------------------------------------------------ #
-    def _build_filename(self) -> str:
-        """Запрашивает имя и расширение файла, собирает полное имя.
-
-        Defaults: имя = 'zdrav_garant', расширение = 'pkl'.
-        Raises CancelAction при отмене.
-        """
-        raw_name = self.io.input_optional_str(
-            "  Имя файла (Enter — zdrav_garant): "
-        )
-        name = raw_name if raw_name else "zdrav_garant"
-
-        raw_ext = self.io.input_optional_str(
-            "  Расширение (Enter — pkl): "
-        )
-        ext = raw_ext.strip().lstrip(".") if raw_ext else "pkl"
-
-        return f"{name}.{ext}"
-
     def save_to_file(self):
-        """Сохранение состояния системы в файл."""
+        """Сохранение состояния в общий файл данных (консоль и веб)."""
         self.io.message("\n--- Сохранение в файл ---")
-        self.io.message("  (для отмены введите cancel)")
-        try:
-            filename = self._build_filename()
-            data = {
-                "patients": self.patients,
-                "doctors": self.doctors,
-                "clinics": self.clinics,
-                "appointments": self.appointments,
-            }
-            ok, msg = self.storage.save(data, filename)
-            if ok:
-                self.io.success(f"Данные сохранены в '{filename}'.")
-            else:
-                self.io.error(msg)
-        except CancelAction:
-            self.io.message("  Сохранение отменено.")
+        ok, msg = save_system_to_path(self, DEFAULT_SAVE_PATH)
+        if ok:
+            self.io.success(f"Данные сохранены в '{DEFAULT_SAVE_PATH}'.")
+        else:
+            self.io.error(msg)
 
     def load_from_file(self):
-        """Загрузка состояния системы из файла."""
+        """Загрузка состояния из общего файла данных (консоль и веб)."""
         self.io.message("\n--- Загрузка из файла ---")
-        self.io.message("  (для отмены введите cancel)")
-        try:
-            filename = self._build_filename()
-            data, msg = self.storage.load(filename)
-            if data is not None:
-                self.patients = data.get("patients", [])
-                self.doctors = data.get("doctors", [])
-                self.clinics = data.get("clinics", [])
-                self.appointments = data.get("appointments", [])
-                self._ensure_demo_data()
-                self.io.success(f"Данные загружены из '{filename}'.")
-            else:
-                self.io.error(msg)
-        except CancelAction:
-            self.io.message("  Загрузка отменена.")
+        data, msg = self.storage.load(DEFAULT_SAVE_PATH)
+        if data is None:
+            self.io.error(msg)
+            return
+        if not isinstance(data, dict):
+            self.io.error(
+                "Файл данных повреждён или имеет неверный формат (ожидался словарь)."
+            )
+            return
+        self.patients = data.get("patients", [])
+        self.doctors = data.get("doctors", [])
+        self.clinics = data.get("clinics", [])
+        self.appointments = data.get("appointments", [])
+        self._ensure_demo_data()
+        self.io.success(f"Данные загружены из '{DEFAULT_SAVE_PATH}'.")
 
     def _ensure_demo_data(self):
         """Добавляет демо-клиники и врачей, если они отсутствуют после загрузки."""
@@ -631,3 +605,49 @@ class MedicalSystem:
         for d in demo_doctors:
             if d.id not in existing_doctor_ids:
                 self.doctors.append(d)
+
+
+def save_system_to_path(system: MedicalSystem, path: str) -> tuple[bool, str]:
+    """Сохраняет состояние системы в указанный pickle-файл."""
+    ensure_data_dir()
+    data = {
+        "patients": system.patients,
+        "doctors": system.doctors,
+        "clinics": system.clinics,
+        "appointments": system.appointments,
+    }
+    return system.storage.save(data, path)
+
+
+def load_system() -> MedicalSystem:
+    """Загружает систему из общего файла или создаёт начальное состояние и сохраняет его."""
+    ensure_data_dir()
+    storage = PickleStorage()
+    path = DEFAULT_SAVE_PATH
+
+    if not os.path.isfile(path):
+        system = MedicalSystem()
+        ok, msg = save_system_to_path(system, path)
+        if not ok:
+            raise RuntimeError(
+                f"Не удалось создать начальный файл данных '{path}': {msg}"
+            )
+        return system
+
+    data, msg = storage.load(path)
+    if data is None:
+        raise RuntimeError(f"Не удалось загрузить данные из '{path}': {msg}")
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            f"Файл '{path}' повреждён: неверный формат (ожидался словарь данных)."
+        )
+
+    system = MedicalSystem()
+    system.patients = data.get("patients", [])
+    system.doctors = data.get("doctors", [])
+    system.clinics = data.get("clinics", [])
+    system.appointments = data.get("appointments", [])
+    system._ensure_demo_data()
+    return system
+
+

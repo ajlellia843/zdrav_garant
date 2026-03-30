@@ -1,4 +1,4 @@
-"""Веб-точка входа приложения «ЗдравГарант» на Flask.
+﻿"""Веб-точка входа приложения «ЗдравГарант» на Flask.
 
 Использует MedicalSystem как сервис данных.
 Консольная версия (main.py) остаётся без изменений.
@@ -13,15 +13,16 @@ from flask import (
     url_for, session, flash, abort,
 )
 
-from medical_system import MedicalSystem
+from medical_system import load_system
 from patient import Patient
 from appointment import Appointment
 from validators import validate_password, validate_email
+from data_paths import DATA_DIR, DEFAULT_SAVE_PATH, ensure_data_dir
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "zdrav-garant-secret-key")
 
-system = MedicalSystem()
+system = load_system()
 
 
 # ------------------------------------------------------------------ #
@@ -516,9 +517,13 @@ def save():
         raw_name = request.form.get("filename", "").strip()
         raw_ext = request.form.get("extension", "").strip()
 
-        name = raw_name if raw_name else "zdrav_garant"
-        ext = raw_ext.lstrip(".") if raw_ext else "pkl"
-        filename = f"{name}.{ext}"
+        if not raw_name and not raw_ext:
+            filename = DEFAULT_SAVE_PATH
+        else:
+            ensure_data_dir()
+            name = raw_name if raw_name else "zdrav_garant"
+            ext = raw_ext.lstrip(".") if raw_ext else "pkl"
+            filename = os.path.join(DATA_DIR, f"{name}.{ext}")
 
         data = {
             "patients": system.patients,
@@ -534,7 +539,7 @@ def save():
 
         return redirect(url_for("save"))
 
-    return render_template("save_load.html", mode="save")
+    return render_template("save_load.html", mode="save", default_save_path=DEFAULT_SAVE_PATH)
 
 
 @app.route("/load", methods=["GET", "POST"])
@@ -544,9 +549,13 @@ def load():
         raw_name = request.form.get("filename", "").strip()
         raw_ext = request.form.get("extension", "").strip()
 
-        name = raw_name if raw_name else "zdrav_garant"
-        ext = raw_ext.lstrip(".") if raw_ext else "pkl"
-        filename = f"{name}.{ext}"
+        if not raw_name and not raw_ext:
+            filename = DEFAULT_SAVE_PATH
+        else:
+            ensure_data_dir()
+            name = raw_name if raw_name else "zdrav_garant"
+            ext = raw_ext.lstrip(".") if raw_ext else "pkl"
+            filename = os.path.join(DATA_DIR, f"{name}.{ext}")
 
         data, msg = system.storage.load(filename)
         if data is not None:
@@ -561,7 +570,7 @@ def load():
 
         return redirect(url_for("load"))
 
-    return render_template("save_load.html", mode="load")
+    return render_template("save_load.html", mode="load", default_save_path=DEFAULT_SAVE_PATH)
 
 
 # ------------------------------------------------------------------ #
