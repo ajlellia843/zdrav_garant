@@ -3,3 +3,4 @@ __pycache__/
 *.pkl
 .venv/
 data/
+debug-*.log

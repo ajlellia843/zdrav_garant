@@ -4,7 +4,8 @@
 Стартовое меню выполняет роль административной панели.
 """
 
-from medical_system import load_system
+from data_paths import DEFAULT_SAVE_PATH
+from medical_system import load_system, save_system_to_path
 from console_io import ConsoleIO
 
 
@@ -15,6 +16,16 @@ def main():
     except RuntimeError as e:
         print(f"Ошибка загрузки данных: {e}")
         return
+
+    try:
+        _run_main_loop(system)
+    finally:
+        ok, msg = save_system_to_path(system, DEFAULT_SAVE_PATH)
+        if not ok:
+            print(f"Предупреждение: автосохранение не выполнено: {msg}")
+
+
+def _run_main_loop(system):
     io = ConsoleIO()
     current_patient = None
 
@@ -159,7 +170,7 @@ def main():
 
     def action_exit():
         io.message("\nСпасибо за использование системы «ЗдравГарант». До свидания!")
-        raise SystemExit
+        raise SystemExit(0)
 
     main_menu = {
         1: ("Регистрация пользователя", action_register),
