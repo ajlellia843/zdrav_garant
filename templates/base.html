@@ -8,6 +8,16 @@
 </head>
 <body>
 
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="toast-container">
+    {% for category, message in messages %}
+    <div class="toast toast-{{ category }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
 <header class="header">
     <div class="header-brand"><a href="{{ url_for('index') }}">ЗдравГарант</a></div>
     <nav class="header-nav">
@@ -34,17 +44,20 @@
     {% endif %}
 
     <main class="content {% if not current_patient %}content-full{% endif %}">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash flash-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
         {% block content %}{% endblock %}
     </main>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.toast').forEach(function(t) {
+        setTimeout(function() {
+            t.classList.add('toast-hide');
+            setTimeout(function() { t.remove(); }, 400);
+        }, 5000);
+    });
+});
+</script>
 
 </body>
 </html>

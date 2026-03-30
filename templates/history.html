@@ -23,8 +23,8 @@
             <div class="reschedule-inline" id="reschedule-{{ a.appointment_id }}" style="display:none;">
                 <form method="POST" action="{{ url_for('reschedule_appointment', appointment_id=a.appointment_id) }}">
                     <div class="reschedule-inline">
-                        <input type="text" name="new_date" class="form-input"
-                               placeholder="дд.мм.гггг">
+                        <input type="date" name="new_date" class="form-input"
+                               min="{{ today }}">
                         <button type="submit" class="btn btn-primary btn-sm">OK</button>
                     </div>
                 </form>

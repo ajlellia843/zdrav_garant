@@ -172,6 +172,8 @@ def logout():
 def dashboard():
     patient = _current_patient()
     selected_clinic_id = request.args.get("clinic_id", type=int)
+    saved_doctor_id = request.args.get("doctor_id", type=int)
+    saved_date = request.args.get("date", "")
 
     selected_clinic = None
     doctors = []
@@ -186,6 +188,9 @@ def dashboard():
         selected_clinic=selected_clinic,
         doctors=doctors,
         patient=patient,
+        saved_doctor_id=saved_doctor_id,
+        saved_date=saved_date,
+        today=date.today().isoformat(),
     )
 
 
@@ -197,9 +202,17 @@ def create_appointment():
     doctor_id = request.form.get("doctor_id", type=int)
     date_str = request.form.get("date", "").strip()
 
+    error_params = {}
+    if clinic_id:
+        error_params["clinic_id"] = clinic_id
+    if doctor_id:
+        error_params["doctor_id"] = doctor_id
+    if date_str:
+        error_params["date"] = date_str
+
     if not clinic_id or not doctor_id or not date_str:
         flash("Все поля обязательны.", "error")
-        return redirect(url_for("dashboard", clinic_id=clinic_id))
+        return redirect(url_for("dashboard", **error_params))
 
     clinic = system._find_clinic_by_id(clinic_id)
     if not clinic:
@@ -209,30 +222,32 @@ def create_appointment():
     doctor = system._find_doctor_by_id(doctor_id)
     if not doctor or doctor.clinic_id != clinic_id:
         flash("Врач не найден в выбранной клинике.", "error")
-        return redirect(url_for("dashboard", clinic_id=clinic_id))
+        return redirect(url_for("dashboard", **error_params))
 
     try:
-        parsed = datetime.strptime(date_str, "%d.%m.%Y").date()
+        parsed = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
-        flash("Неверный формат даты. Используйте ДД.ММ.ГГГГ.", "error")
-        return redirect(url_for("dashboard", clinic_id=clinic_id))
+        flash("Неверный формат даты.", "error")
+        return redirect(url_for("dashboard", **error_params))
 
     if parsed < date.today():
         flash("Дата не может быть раньше сегодняшнего дня.", "error")
-        return redirect(url_for("dashboard", clinic_id=clinic_id))
+        return redirect(url_for("dashboard", **error_params))
+
+    display_date = parsed.strftime("%d.%m.%Y")
 
     appt = Appointment(
         system._next_appointment_id(),
         patient.id,
         doctor.id,
         clinic.clinic_id,
-        date_str,
+        display_date,
     )
     system.appointments.append(appt)
     patient.appointments.append(appt.appointment_id)
 
     flash(
-        f"Запись создана: {doctor.full_name}, {clinic.clinic_name}, {date_str}",
+        f"Запись создана: {doctor.full_name}, {clinic.clinic_name}, {display_date}",
         "success",
     )
     return redirect(url_for("history"))
@@ -256,7 +271,10 @@ def history():
                 "doctor": doctor,
                 "clinic": clinic,
             })
-    return render_template("history.html", records=records, patient=patient)
+    return render_template(
+        "history.html", records=records, patient=patient,
+        today=date.today().isoformat(),
+    )
 
 
 @app.route("/cancel/<int:appointment_id>", methods=["POST"])
@@ -286,22 +304,24 @@ def reschedule_appointment(appointment_id):
         return redirect(url_for("history"))
 
     try:
-        parsed = datetime.strptime(new_date, "%d.%m.%Y").date()
+        parsed = datetime.strptime(new_date, "%Y-%m-%d").date()
     except ValueError:
-        flash("Неверный формат даты. Используйте ДД.ММ.ГГГГ.", "error")
+        flash("Неверный формат даты.", "error")
         return redirect(url_for("history"))
 
     if parsed < date.today():
         flash("Дата не может быть раньше сегодняшнего дня.", "error")
         return redirect(url_for("history"))
 
+    display_date = parsed.strftime("%d.%m.%Y")
+
     for appt in system.appointments:
         if appt.appointment_id == appointment_id and appt.patient_id == patient.id:
             if appt.status != "scheduled":
                 flash("Можно перенести только запланированную запись.", "error")
             else:
-                appt.date = new_date
-                flash(f"Запись #{appointment_id} перенесена на {new_date}.", "success")
+                appt.date = display_date
+                flash(f"Запись #{appointment_id} перенесена на {display_date}.", "success")
             return redirect(url_for("history"))
 
     flash("Запись не найдена.", "error")
