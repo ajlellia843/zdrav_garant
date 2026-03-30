@@ -1,13 +1,13 @@
 """Веб-точка входа приложения «ЗдравГарант» на Flask.
 
 Использует MedicalSystem как сервис данных.
-Консольная версия (main.py) остаётся без изменений.
+Состояние синхронизируется с консолью через общий файл в data/.
 """
 
+import atexit
 import os
 import functools
-import json
-import time
+import sys
 from datetime import datetime, date
 
 from flask import (
@@ -15,44 +15,28 @@ from flask import (
     url_for, session, flash, abort,
 )
 
-from medical_system import load_system
+from medical_system import load_system, save_system_to_path
 from patient import Patient
 from appointment import Appointment
 from validators import validate_password, validate_email
-from data_paths import DATA_DIR, DEFAULT_SAVE_PATH, ensure_data_dir
+from data_paths import DEFAULT_SAVE_PATH, manual_backup_path
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "zdrav-garant-secret-key")
 
 system = load_system()
 
-# #region agent log
-def _debug_log(hypothesisId: str, location: str, message: str, data: dict | None = None) -> None:
-    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug-4d3e32.log")
-    payload = {
-        "sessionId": "4d3e32",
-        "runId": "pre-fix",
-        "hypothesisId": hypothesisId,
-        "id": f"log_{int(time.time() * 1000)}",
-        "timestamp": int(time.time() * 1000),
-        "location": location,
-        "message": message,
-        "data": data or {},
-    }
-    with open(log_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
-_debug_log(
-    "H5",
-    "app.py:web_startup",
-    "Web app initialized by calling load_system() once at import/startup.",
-    {
-        "save_path": DEFAULT_SAVE_PATH,
-        "save_file_exists": os.path.isfile(DEFAULT_SAVE_PATH),
-        "patients_count": len(system.patients),
-    },
-)
-# #endregion
+def _autosave_on_exit():
+    ok, msg = save_system_to_path(system, DEFAULT_SAVE_PATH)
+    if not ok:
+        print(
+            f"Предупреждение: автосохранение при завершении не выполнено: {msg}",
+            file=sys.stderr,
+        )
+
+
+atexit.register(_autosave_on_exit)
 
 
 # ------------------------------------------------------------------ #
@@ -546,30 +530,21 @@ def save():
     if request.method == "POST":
         raw_name = request.form.get("filename", "").strip()
         raw_ext = request.form.get("extension", "").strip()
-
-        if not raw_name and not raw_ext:
-            filename = DEFAULT_SAVE_PATH
-        else:
-            ensure_data_dir()
-            name = raw_name if raw_name else "zdrav_garant"
-            ext = raw_ext.lstrip(".") if raw_ext else "pkl"
-            filename = os.path.join(DATA_DIR, f"{name}.{ext}")
-
-        data = {
-            "patients": system.patients,
-            "doctors": system.doctors,
-            "clinics": system.clinics,
-            "appointments": system.appointments,
-        }
-        ok, msg = system.storage.save(data, filename)
+        path = manual_backup_path(raw_name, raw_ext)
+        ok, msg = save_system_to_path(system, path)
         if ok:
-            flash(f"Данные сохранены в '{filename}'.", "success")
+            flash(f"Данные сохранены в '{path}'.", "success")
         else:
             flash(msg, "error")
 
         return redirect(url_for("save"))
 
-    return render_template("save_load.html", mode="save", default_save_path=DEFAULT_SAVE_PATH)
+    return render_template(
+        "save_load.html",
+        mode="save",
+        primary_save_path=DEFAULT_SAVE_PATH,
+        default_manual_path=manual_backup_path("", ""),
+    )
 
 
 @app.route("/load", methods=["GET", "POST"])
@@ -578,29 +553,28 @@ def load():
     if request.method == "POST":
         raw_name = request.form.get("filename", "").strip()
         raw_ext = request.form.get("extension", "").strip()
-
-        if not raw_name and not raw_ext:
-            filename = DEFAULT_SAVE_PATH
-        else:
-            ensure_data_dir()
-            name = raw_name if raw_name else "zdrav_garant"
-            ext = raw_ext.lstrip(".") if raw_ext else "pkl"
-            filename = os.path.join(DATA_DIR, f"{name}.{ext}")
-
-        data, msg = system.storage.load(filename)
-        if data is not None:
+        path = manual_backup_path(raw_name, raw_ext)
+        data, msg = system.storage.load(path)
+        if data is not None and isinstance(data, dict):
             system.patients = data.get("patients", [])
             system.doctors = data.get("doctors", [])
             system.clinics = data.get("clinics", [])
             system.appointments = data.get("appointments", [])
             system._ensure_demo_data()
-            flash(f"Данные загружены из '{filename}'.", "success")
+            flash(f"Данные загружены из '{path}'.", "success")
+        elif data is not None:
+            flash("Файл повреждён или имеет неверный формат (ожидался словарь).", "error")
         else:
             flash(msg, "error")
 
         return redirect(url_for("load"))
 
-    return render_template("save_load.html", mode="load", default_save_path=DEFAULT_SAVE_PATH)
+    return render_template(
+        "save_load.html",
+        mode="load",
+        primary_save_path=DEFAULT_SAVE_PATH,
+        default_manual_path=manual_backup_path("", ""),
+    )
 
 
 # ------------------------------------------------------------------ #

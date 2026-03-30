@@ -8,14 +8,6 @@
         <div class="auth-title">ЗдравГарант</div>
         <div class="auth-subtitle">Создание защищенной записи пациента</div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash flash-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
         <form method="POST" action="{{ url_for('register') }}">
             <div class="form-group">
                 <label class="form-label">Фамилия *</label>
