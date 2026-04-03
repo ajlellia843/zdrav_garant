@@ -8,8 +8,6 @@ import atexit
 import os
 import functools
 import sys
-import json
-import time
 from datetime import datetime, date
 
 from flask import (
@@ -29,42 +27,6 @@ app.secret_key = os.environ.get("SECRET_KEY", "zdrav-garant-secret-key")
 system = load_system()
 
 
-# #region agent log
-def _debug_log(hypothesis_id: str, location: str, message: str, data: dict | None = None, run_id: str = "pre-fix") -> None:
-    payload = {
-        "sessionId": "14180c",
-        "runId": run_id,
-        "hypothesisId": hypothesis_id,
-        "id": f"log_{int(time.time() * 1000)}",
-        "timestamp": int(time.time() * 1000),
-        "location": location,
-        "message": message,
-        "data": data or {},
-    }
-    try:
-        with open("debug-14180c.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
-    except OSError:
-        pass
-# #endregion
-
-# #region agent log
-_debug_log(
-    "H1",
-    "app.py:startup",
-    "Flask app module loaded.",
-    {
-        "pid": os.getpid(),
-        "default_save_path": DEFAULT_SAVE_PATH,
-        "werkzeug_run_main": os.environ.get("WERKZEUG_RUN_MAIN"),
-        "flask_debug": os.environ.get("FLASK_DEBUG"),
-        "patients_count": len(system.patients),
-        "appointments_count": len(system.appointments),
-    },
-)
-# #endregion
-
-
 def _is_runtime_process() -> bool:
     """True для единственного процесса, который должен писать autosave."""
     if not app.debug:
@@ -73,62 +35,20 @@ def _is_runtime_process() -> bool:
 
 
 def _autosave_on_exit():
-    # #region agent log
-    _debug_log(
-        "H2",
-        "app.py:_autosave_on_exit:enter",
-        "Autosave handler entered.",
-        {
-            "pid": os.getpid(),
-            "is_runtime_process": _is_runtime_process(),
-            "default_save_path": DEFAULT_SAVE_PATH,
-            "patients_count": len(system.patients),
-            "appointments_count": len(system.appointments),
-            "werkzeug_run_main": os.environ.get("WERKZEUG_RUN_MAIN"),
-        },
-    )
-    # #endregion
     if not _is_runtime_process():
-        # #region agent log
-        _debug_log(
-            "H5",
-            "app.py:_autosave_on_exit:skip",
-            "Autosave skipped for non-runtime reloader process.",
-            {"pid": os.getpid(), "werkzeug_run_main": os.environ.get("WERKZEUG_RUN_MAIN")},
-            run_id="post-fix",
-        )
-        # #endregion
         return
     try:
         ok, msg = save_system_to_path(system, DEFAULT_SAVE_PATH)
-        # #region agent log
-        _debug_log(
-            "H3",
-            "app.py:_autosave_on_exit:after_save",
-            "Autosave attempted.",
-            {
-                "pid": os.getpid(),
-                "ok": ok,
-                "msg": msg,
-                "save_file_exists_after": os.path.isfile(DEFAULT_SAVE_PATH),
-            },
-            run_id="post-fix",
-        )
-        # #endregion
         if not ok:
             print(
                 f"Предупреждение: автосохранение при завершении не выполнено: {msg}",
                 file=sys.stderr,
             )
     except Exception as exc:  # noqa: BLE001
-        # #region agent log
-        _debug_log(
-            "H4",
-            "app.py:_autosave_on_exit:exception",
-            "Autosave handler raised exception.",
-            {"pid": os.getpid(), "exc_type": type(exc).__name__, "exc": str(exc)},
+        print(
+            f"Предупреждение: автосохранение при завершении: {exc}",
+            file=sys.stderr,
         )
-        # #endregion
 
 
 atexit.register(_autosave_on_exit)

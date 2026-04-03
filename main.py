@@ -4,9 +4,9 @@
 Стартовое меню выполняет роль административной панели.
 """
 
+from data_paths import DEFAULT_SAVE_PATH
 from medical_system import load_system, save_system_to_path
 from console_io import ConsoleIO
-from data_paths import DEFAULT_SAVE_PATH
 
 
 def main():
