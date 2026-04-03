@@ -32,10 +32,9 @@
             <td>{{ p.role|default('user') }}</td>
             <td style="display:flex; gap:6px;">
                 <a href="{{ url_for('admin_edit', patient_id=p.id) }}" class="btn btn-outline btn-sm">Редактировать</a>
-                <form method="POST" action="{{ url_for('admin_delete', patient_id=p.id) }}"
-                      onsubmit="return confirm('Удалить пациента {{ p.full_name }}?')">
-                    <button type="submit" class="btn btn-danger btn-sm">Удалить</button>
-                </form>
+                <button type="button" class="btn btn-danger btn-sm"
+                        data-zdrav-delete-url="{{ url_for('admin_delete', patient_id=p.id) }}"
+                        data-zdrav-confirm="Удалить пациента {{ p.full_name }}?">Удалить</button>
             </td>
         </tr>
         {% endfor %}

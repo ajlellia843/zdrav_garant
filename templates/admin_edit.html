@@ -5,7 +5,9 @@
 <h1 class="page-title">Редактирование пациента</h1>
 <p class="page-subtitle">{{ patient.id }} — {{ patient.full_name }}</p>
 
-<form method="POST" class="auth-form" style="max-width:480px;">
+<form class="auth-form" style="max-width:480px;"
+      action="{{ url_for('admin_edit', patient_id=patient.id) }}"
+      data-http-method="PUT">
     <div class="form-group">
         <label class="form-label">Фамилия *</label>
         <input type="text" name="last_name" class="form-input"

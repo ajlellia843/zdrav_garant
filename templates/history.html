@@ -21,7 +21,8 @@
             </div>
             {% if a.status == "scheduled" %}
             <div class="reschedule-inline" id="reschedule-{{ a.appointment_id }}" style="display:none;">
-                <form method="POST" action="{{ url_for('reschedule_appointment', appointment_id=a.appointment_id) }}">
+                <form action="{{ url_for('reschedule_appointment', appointment_id=a.appointment_id) }}"
+                      data-http-method="PUT">
                     <div class="reschedule-inline">
                         <input type="date" name="new_date" class="form-input"
                                min="{{ today }}">
@@ -41,9 +42,8 @@
 
         {% if a.status == "scheduled" %}
         <div class="record-actions">
-            <form method="POST" action="{{ url_for('cancel_appointment', appointment_id=a.appointment_id) }}">
-                <button type="submit" class="btn btn-danger btn-sm">Отменить</button>
-            </form>
+            <button type="button" class="btn btn-danger btn-sm"
+                    onclick="zdravPutUrl('{{ url_for('cancel_appointment', appointment_id=a.appointment_id) }}')">Отменить</button>
             <button type="button" class="btn btn-outline btn-sm"
                     onclick="document.getElementById('reschedule-{{ a.appointment_id }}').style.display='flex'">
                 Перенести

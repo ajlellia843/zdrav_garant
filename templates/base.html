@@ -52,6 +52,46 @@
 </div>
 
 <script>
+function zdravHandleApiResponseText(text) {
+    try {
+        var data = JSON.parse(text);
+        if (data.success && data.redirect_url) {
+            window.location.href = data.redirect_url;
+        } else if (data.message) {
+            alert(data.message);
+        } else {
+            alert('Не удалось обработать ответ сервера.');
+        }
+    } catch (e) {
+        alert('Сессия истекла или сервер вернул неожиданный ответ. Обновите страницу.');
+    }
+}
+
+function zdravSubmitFormPut(form) {
+    var fd = new FormData(form);
+    fetch(form.action, { method: 'PUT', body: fd, credentials: 'same-origin' })
+        .then(function(r) { return r.text(); })
+        .then(zdravHandleApiResponseText)
+        .catch(function() { alert('Ошибка сети.'); });
+}
+
+function zdravPutUrl(url) {
+    fetch(url, { method: 'PUT', credentials: 'same-origin' })
+        .then(function(r) { return r.text(); })
+        .then(zdravHandleApiResponseText)
+        .catch(function() { alert('Ошибка сети.'); });
+}
+
+function zdravDeleteUrl(url, confirmMessage) {
+    if (confirmMessage && !window.confirm(confirmMessage)) {
+        return;
+    }
+    fetch(url, { method: 'DELETE', credentials: 'same-origin' })
+        .then(function(r) { return r.text(); })
+        .then(zdravHandleApiResponseText)
+        .catch(function() { alert('Ошибка сети.'); });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.toast').forEach(function(t) {
         setTimeout(function() {
@@ -67,6 +107,21 @@ document.addEventListener('DOMContentLoaded', function() {
             input.type = isPassword ? 'text' : 'password';
             this.querySelector('.eye-open').style.display = isPassword ? 'none' : 'block';
             this.querySelector('.eye-closed').style.display = isPassword ? 'block' : 'none';
+        });
+    });
+
+    document.querySelectorAll('form[data-http-method="PUT"]').forEach(function(form) {
+        form.addEventListener('submit', function(ev) {
+            ev.preventDefault();
+            zdravSubmitFormPut(form);
+        });
+    });
+
+    document.querySelectorAll('[data-zdrav-delete-url]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var url = btn.getAttribute('data-zdrav-delete-url');
+            var msg = btn.getAttribute('data-zdrav-confirm') || '';
+            zdravDeleteUrl(url, msg);
         });
     });
 });

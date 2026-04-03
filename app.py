@@ -14,7 +14,7 @@ from datetime import datetime, date
 
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, flash, abort,
+    url_for, session, flash, abort, jsonify,
 )
 
 from medical_system import load_system, save_system_to_path
@@ -402,55 +402,55 @@ def history():
     )
 
 
-@app.route("/cancel/<int:appointment_id>", methods=["POST"])
+@app.route("/cancel/<int:appointment_id>", methods=["PUT"])
 @login_required
 def cancel_appointment(appointment_id):
     patient = _current_patient()
     for appt in system.appointments:
         if appt.appointment_id == appointment_id and appt.patient_id == patient.id:
             if appt.status == "cancelled":
-                flash("Запись уже отменена.", "error")
-            else:
-                appt.status = "cancelled"
-                flash(f"Запись #{appointment_id} отменена.", "success")
-            return redirect(url_for("history"))
-    flash("Запись не найдена.", "error")
-    return redirect(url_for("history"))
+                return jsonify(
+                    success=False, message="Запись уже отменена.",
+                ), 400
+            appt.status = "cancelled"
+            flash(f"Запись #{appointment_id} отменена.", "success")
+            return jsonify(success=True, redirect_url=url_for("history"))
+    return jsonify(success=False, message="Запись не найдена."), 400
 
 
-@app.route("/reschedule/<int:appointment_id>", methods=["POST"])
+@app.route("/reschedule/<int:appointment_id>", methods=["PUT"])
 @login_required
 def reschedule_appointment(appointment_id):
     patient = _current_patient()
     new_date = request.form.get("new_date", "").strip()
 
     if not new_date:
-        flash("Введите новую дату.", "error")
-        return redirect(url_for("history"))
+        return jsonify(success=False, message="Введите новую дату."), 400
 
     try:
         parsed = datetime.strptime(new_date, "%Y-%m-%d").date()
     except ValueError:
-        flash("Неверный формат даты.", "error")
-        return redirect(url_for("history"))
+        return jsonify(success=False, message="Неверный формат даты."), 400
 
     if parsed < date.today():
-        flash("Дата не может быть раньше сегодняшнего дня.", "error")
-        return redirect(url_for("history"))
+        return jsonify(
+            success=False, message="Дата не может быть раньше сегодняшнего дня.",
+        ), 400
 
     display_date = parsed.strftime("%d.%m.%Y")
 
     for appt in system.appointments:
         if appt.appointment_id == appointment_id and appt.patient_id == patient.id:
             if appt.status != "scheduled":
-                flash("Можно перенести только запланированную запись.", "error")
-            else:
-                appt.date = display_date
-                flash(f"Запись #{appointment_id} перенесена на {display_date}.", "success")
-            return redirect(url_for("history"))
+                return jsonify(
+                    success=False,
+                    message="Можно перенести только запланированную запись.",
+                ), 400
+            appt.date = display_date
+            flash(f"Запись #{appointment_id} перенесена на {display_date}.", "success")
+            return jsonify(success=True, redirect_url=url_for("history"))
 
-    flash("Запись не найдена.", "error")
-    return redirect(url_for("history"))
+    return jsonify(success=False, message="Запись не найдена."), 400
 
 
 # ------------------------------------------------------------------ #
@@ -463,7 +463,7 @@ def security():
     return render_template("security.html", patient=_current_patient())
 
 
-@app.route("/update_profile", methods=["POST"])
+@app.route("/update_profile", methods=["PUT"])
 @login_required
 def update_profile():
     patient = _current_patient()
@@ -473,19 +473,21 @@ def update_profile():
     current_password = request.form.get("current_password", "")
 
     if current_password != patient.password:
-        flash("Неверный пароль. Изменение отклонено.", "error")
-        return redirect(url_for("security"))
+        return jsonify(
+            success=False, message="Неверный пароль. Изменение отклонено.",
+        ), 400
 
     if not last_name or not first_name:
-        flash("Фамилия и имя не могут быть пустыми.", "error")
-        return redirect(url_for("security"))
+        return jsonify(
+            success=False, message="Фамилия и имя не могут быть пустыми.",
+        ), 400
 
     patient.edit(last_name=last_name, first_name=first_name, middle_name=middle_name)
     flash("Данные профиля обновлены.", "success")
-    return redirect(url_for("security"))
+    return jsonify(success=True, redirect_url=url_for("security"))
 
 
-@app.route("/update_password", methods=["POST"])
+@app.route("/update_password", methods=["PUT"])
 @login_required
 def update_password():
     patient = _current_patient()
@@ -494,21 +496,21 @@ def update_password():
     confirm = request.form.get("confirm_password", "")
 
     if current != patient.password:
-        flash("Неверный текущий пароль.", "error")
-        return redirect(url_for("security"))
+        return jsonify(success=False, message="Неверный текущий пароль."), 400
 
     pwd_ok, pwd_errors = validate_password(new_pwd)
     if not pwd_ok:
-        flash("Пароль не соответствует требованиям: " + "; ".join(pwd_errors), "error")
-        return redirect(url_for("security"))
+        return jsonify(
+            success=False,
+            message="Пароль не соответствует требованиям: " + "; ".join(pwd_errors),
+        ), 400
 
     if new_pwd != confirm:
-        flash("Пароли не совпадают.", "error")
-        return redirect(url_for("security"))
+        return jsonify(success=False, message="Пароли не совпадают."), 400
 
     patient.edit(password=new_pwd)
     flash("Пароль успешно изменён.", "success")
-    return redirect(url_for("security"))
+    return jsonify(success=True, redirect_url=url_for("security"))
 
 
 # ------------------------------------------------------------------ #
@@ -519,89 +521,97 @@ def _count_admins():
     return sum(1 for p in system.patients if getattr(p, "role", "user") == "admin")
 
 
+def _try_admin_edit_patient(patient):
+    """Читает request.form и обновляет пациента. None — успех, иначе текст ошибки."""
+    last_name = request.form.get("last_name", "").strip()
+    first_name = request.form.get("first_name", "").strip()
+    middle_name = request.form.get("middle_name", "").strip()
+    age_str = request.form.get("age", "").strip()
+    email = request.form.get("email", "").strip()
+    new_role = request.form.get("role", "user").strip()
+    password = request.form.get("password", "")
+
+    if not last_name or not first_name:
+        return "Фамилия и имя обязательны."
+
+    try:
+        age = int(age_str)
+        if age <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return "Возраст должен быть положительным числом."
+
+    email_ok, email_err = validate_email(email)
+    if not email_ok:
+        return email_err
+
+    existing = system.find_patient_by_email(email)
+    if existing and existing.id != patient.id:
+        return "Этот email уже зарегистрирован."
+
+    if getattr(patient, "role", "user") == "admin" and new_role != "admin":
+        if _count_admins() <= 1:
+            return "Невозможно понизить последнего администратора."
+
+    pwd_update = None
+    if password:
+        ok, pwd_errors = validate_password(password)
+        if not ok:
+            return "Пароль не соответствует требованиям: " + "; ".join(pwd_errors)
+        pwd_update = password
+
+    patient.edit(
+        last_name=last_name,
+        first_name=first_name,
+        middle_name=middle_name,
+        age=age,
+        email=email,
+        role=new_role,
+        password=pwd_update,
+    )
+    return None
+
+
 @app.route("/admin")
 @admin_required
 def admin():
     return render_template("admin.html", patients=system.patients)
 
 
-@app.route("/admin/edit/<patient_id>", methods=["GET", "POST"])
+@app.route("/admin/edit/<patient_id>", methods=["GET", "PUT"])
 @admin_required
 def admin_edit(patient_id):
     patient = system.find_patient_by_id(patient_id)
     if not patient:
+        if request.method == "PUT":
+            return jsonify(success=False, message="Пациент не найден."), 400
         flash("Пациент не найден.", "error")
         return redirect(url_for("admin"))
 
-    if request.method == "POST":
-        last_name = request.form.get("last_name", "").strip()
-        first_name = request.form.get("first_name", "").strip()
-        middle_name = request.form.get("middle_name", "").strip()
-        age_str = request.form.get("age", "").strip()
-        email = request.form.get("email", "").strip()
-        new_role = request.form.get("role", "user").strip()
-        password = request.form.get("password", "")
-
-        if not last_name or not first_name:
-            flash("Фамилия и имя обязательны.", "error")
-            return render_template("admin_edit.html", patient=patient)
-
-        try:
-            age = int(age_str)
-            if age <= 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            flash("Возраст должен быть положительным числом.", "error")
-            return render_template("admin_edit.html", patient=patient)
-
-        if not validate_email(email):
-            flash("Некорректный формат email.", "error")
-            return render_template("admin_edit.html", patient=patient)
-
-        existing = system.find_patient_by_email(email)
-        if existing and existing.id != patient.id:
-            flash("Этот email уже зарегистрирован.", "error")
-            return render_template("admin_edit.html", patient=patient)
-
-        if getattr(patient, "role", "user") == "admin" and new_role != "admin":
-            if _count_admins() <= 1:
-                flash("Невозможно понизить последнего администратора.", "error")
-                return render_template("admin_edit.html", patient=patient)
-
-        pwd_update = None
-        if password:
-            ok, msg = validate_password(password)
-            if not ok:
-                flash(msg, "error")
-                return render_template("admin_edit.html", patient=patient)
-            pwd_update = password
-
-        patient.edit(
-            last_name=last_name,
-            first_name=first_name,
-            middle_name=middle_name,
-            age=age,
-            email=email,
-            role=new_role,
-            password=pwd_update,
-        )
+    if request.method == "PUT":
+        err = _try_admin_edit_patient(patient)
+        if err:
+            return jsonify(success=False, message=err), 400
         flash(f"Данные пациента {patient.full_name} обновлены.", "success")
-        return redirect(url_for("admin"))
+        return jsonify(success=True, redirect_url=url_for("admin"))
 
     return render_template("admin_edit.html", patient=patient)
 
 
-@app.route("/admin/delete/<patient_id>", methods=["POST"])
+@app.route("/admin/delete/<patient_id>", methods=["DELETE"])
 @admin_required
 def admin_delete(patient_id):
     patient = system.find_patient_by_id(patient_id)
     if not patient:
-        flash("Пациент не найден.", "error")
-        return redirect(url_for("admin"))
+        return jsonify(success=False, message="Пациент не найден."), 400
 
     if getattr(patient, "role", "user") == "admin" and _count_admins() <= 1:
-        flash("Невозможно удалить последнего администратора.", "error")
-        return redirect(url_for("admin"))
+        return jsonify(
+            success=False, message="Невозможно удалить последнего администратора.",
+        ), 400
+
+    full_name = patient.full_name
+    pid = patient.id
 
     system.appointments = [
         a for a in system.appointments if a.patient_id != patient.id
@@ -611,8 +621,8 @@ def admin_delete(patient_id):
     if session.get("patient_id") == patient_id:
         session.pop("patient_id", None)
 
-    flash(f"Пациент {patient.full_name} ({patient.id}) и все его записи удалены.", "success")
-    return redirect(url_for("admin"))
+    flash(f"Пациент {full_name} ({pid}) и все его записи удалены.", "success")
+    return jsonify(success=True, redirect_url=url_for("admin"))
 
 
 # ------------------------------------------------------------------ #
