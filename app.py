@@ -91,6 +91,35 @@ def admin_required(view):
     return wrapped
 
 
+_APPOINTMENT_HIGHLIGHT_KEYS = frozenset({"clinic", "doctor", "date"})
+
+
+def _parse_appointment_highlight_arg(raw: str) -> list[str]:
+    if not raw:
+        return []
+    return [x.strip() for x in raw.split(",") if x.strip() in _APPOINTMENT_HIGHLIGHT_KEYS]
+
+
+def _dashboard_appointment_redirect_params(
+    clinic_id: int | None,
+    doctor_id: int | None,
+    date_str: str,
+    highlight: list[str] | None = None,
+) -> dict:
+    params: dict = {}
+    if clinic_id:
+        params["clinic_id"] = clinic_id
+    if doctor_id:
+        params["doctor_id"] = doctor_id
+    if date_str:
+        params["date"] = date_str
+    if highlight:
+        filtered = [h for h in highlight if h in _APPOINTMENT_HIGHLIGHT_KEYS]
+        if filtered:
+            params["highlight"] = ",".join(filtered)
+    return params
+
+
 @app.context_processor
 def inject_current_patient():
     """Передаёт текущего пациента во все шаблоны."""
@@ -227,6 +256,10 @@ def dashboard():
         if selected_clinic:
             doctors = [d for d in system.doctors if d.clinic_id == selected_clinic_id]
 
+    highlight_fields = _parse_appointment_highlight_arg(
+        request.args.get("highlight", ""),
+    )
+
     return render_template(
         "dashboard.html",
         clinics=system.clinics,
@@ -236,6 +269,7 @@ def dashboard():
         saved_doctor_id=saved_doctor_id,
         saved_date=saved_date,
         today=date.today().isoformat(),
+        highlight_fields=highlight_fields,
     )
 
 
@@ -247,37 +281,64 @@ def create_appointment():
     doctor_id = request.form.get("doctor_id", type=int)
     date_str = request.form.get("date", "").strip()
 
-    error_params = {}
-    if clinic_id:
-        error_params["clinic_id"] = clinic_id
-    if doctor_id:
-        error_params["doctor_id"] = doctor_id
-    if date_str:
-        error_params["date"] = date_str
-
     if not clinic_id or not doctor_id or not date_str:
         flash("Все поля обязательны.", "error")
-        return redirect(url_for("dashboard", **error_params))
+        missing: list[str] = []
+        if not clinic_id:
+            missing.append("clinic")
+        if not doctor_id:
+            missing.append("doctor")
+        if not date_str:
+            missing.append("date")
+        return redirect(
+            url_for(
+                "dashboard",
+                **_dashboard_appointment_redirect_params(
+                    clinic_id, doctor_id, date_str, missing,
+                ),
+            ),
+        )
 
     clinic = system._find_clinic_by_id(clinic_id)
     if not clinic:
         flash("Клиника не найдена.", "error")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("dashboard", highlight="clinic"))
 
     doctor = system._find_doctor_by_id(doctor_id)
     if not doctor or doctor.clinic_id != clinic_id:
         flash("Врач не найден в выбранной клинике.", "error")
-        return redirect(url_for("dashboard", **error_params))
+        return redirect(
+            url_for(
+                "dashboard",
+                **_dashboard_appointment_redirect_params(
+                    clinic_id, doctor_id, date_str, ["doctor"],
+                ),
+            ),
+        )
 
     try:
         parsed = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         flash("Неверный формат даты.", "error")
-        return redirect(url_for("dashboard", **error_params))
+        return redirect(
+            url_for(
+                "dashboard",
+                **_dashboard_appointment_redirect_params(
+                    clinic_id, doctor_id, date_str, ["date"],
+                ),
+            ),
+        )
 
     if parsed < date.today():
         flash("Дата не может быть раньше сегодняшнего дня.", "error")
-        return redirect(url_for("dashboard", **error_params))
+        return redirect(
+            url_for(
+                "dashboard",
+                **_dashboard_appointment_redirect_params(
+                    clinic_id, doctor_id, date_str, ["date"],
+                ),
+            ),
+        )
 
     display_date = parsed.strftime("%d.%m.%Y")
 

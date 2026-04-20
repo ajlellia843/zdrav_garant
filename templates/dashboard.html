@@ -5,7 +5,7 @@
 <h1 class="page-title">Запись на диагностику</h1>
 <p class="page-subtitle">Выберите специализированный клинический центр и доступного специалиста.</p>
 
-<div class="cards-grid">
+<div class="cards-grid{% if 'clinic' in highlight_fields %} field-highlight-error{% endif %}">
     {% for clinic in clinics %}
     <a href="{{ url_for('dashboard', clinic_id=clinic.clinic_id) }}"
        class="card {% if selected_clinic and selected_clinic.clinic_id == clinic.clinic_id %}selected{% endif %}">
@@ -26,7 +26,7 @@
     <form method="POST" action="{{ url_for('create_appointment') }}">
         <input type="hidden" name="clinic_id" value="{{ selected_clinic.clinic_id }}">
 
-        <div class="doctors-grid" id="doctors-grid">
+        <div class="doctors-grid{% if 'doctor' in highlight_fields %} field-highlight-error{% endif %}" id="doctors-grid">
             {% for doctor in doctors %}
             <label class="doctor-card {% if saved_doctor_id == doctor.id %}selected{% endif %}"
                    onclick="selectDoctor(this, {{ doctor.id }})">
@@ -46,7 +46,8 @@
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Дата приёма</label>
-                    <input type="date" name="date" class="form-input"
+                    <input type="date" name="date" id="appointment-date-input"
+                           class="form-input{% if 'date' in highlight_fields %} field-highlight-error{% endif %}"
                            value="{{ saved_date|default('', true) }}"
                            min="{{ today }}" required>
                 </div>
@@ -73,6 +74,17 @@ function selectDoctor(el, doctorId) {
     });
     el.classList.add('selected');
     document.getElementById('doctor-id-input').value = doctorId;
+    var dg = document.getElementById('doctors-grid');
+    if (dg) dg.classList.remove('field-highlight-error');
 }
+
+(function () {
+    var dateInput = document.getElementById('appointment-date-input');
+    if (dateInput) {
+        dateInput.addEventListener('change', function () {
+            dateInput.classList.remove('field-highlight-error');
+        });
+    }
+})();
 </script>
 {% endblock %}
